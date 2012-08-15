@@ -81,9 +81,8 @@ class LookupExpression(object):
                         # # Not a related field. Bail out.
                         lookup_type = parts.pop()
                         return (lookup_model, lookup_field, lookup_type)
-        raise ValueError(
-                "No valid lookup was found for {}".format(self.lookup))
-
+        else:
+            return (instance, getattr(instance, parts[0]), lookup_type)
 
     def eval(self, instance):
         """
