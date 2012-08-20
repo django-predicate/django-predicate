@@ -28,6 +28,10 @@ class P(Q):
     SQL, they are used to test a model instance against a set of conditions.
     """
 
+    # allow the use of the 'in' operator for membership testing
+    def __contains__(self, obj):
+        return self.eval(obj)
+
     def eval(self, instance):
         """
         Returns true if the model instance matches this predicate

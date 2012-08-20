@@ -129,6 +129,13 @@ class ComparisonFunctionsTest(TestCase):
     def test_iregex(self):
         self.assertTrue(P(char_value__iregex='Hel*o').eval(self.testobj))
 
+    def test_in_operator(self):
+        p = P(int_value__lte=50)
+        p2 = P(int_value__lt=10)
+        self.assertTrue(self.testobj in p)
+        self.assertFalse(self.testobj in p2)
+
+
 class GroupTest(TestCase):
 
     def setUp(self):
