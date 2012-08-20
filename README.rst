@@ -42,8 +42,7 @@ or you can use Python's ``in`` operator.
     >>> True
 
 Even though a predicate is not a true container class - it can be used as (and
-was designed for) being treated as a virtual "set" of objects that meets some
-condiiton.
+was designed as being) a virtual "set" of objects that meets some condiiton.
 
 Like Q objects, P objects can be ``&``'ed  and ``|``'ed together to form more
 complex logic groupings.
