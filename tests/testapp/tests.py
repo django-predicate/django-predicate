@@ -154,7 +154,7 @@ class GroupTest(TestCase):
         self.assertFalse(pand2.eval(self.testobj))
 
     def test_or(self):
-        p1 = P(char_value__contains='hello')
+        p1 = P(char_value__contains='hello', int_value=50)
         p2 = P(int_value__gt=80)
         p3 = P(int_value__lt=20)
         por1 = p1 | p2

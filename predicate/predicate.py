@@ -16,7 +16,7 @@ def eval_wrapper(children):
     """
     for child in children:
         if isinstance(child, P):
-            yield P
+            yield child
         elif isinstance(child, tuple) and len(child) == 2:
             yield LookupExpression(child)
 
