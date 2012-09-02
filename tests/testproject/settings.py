@@ -109,7 +109,7 @@ TEMPLATE_DIRS = (
 )
 
 INSTALLED_APPS = (
-        'django_nose',
+        # 'django_nose',
         'testapp',
         'django_extensions',
 )
