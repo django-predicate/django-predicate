@@ -111,7 +111,6 @@ TEMPLATE_DIRS = (
 INSTALLED_APPS = (
         # 'django_nose',
         'testapp',
-        'django_extensions',
 )
 
 # A sample logging configuration. The only tangible logging
