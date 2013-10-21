@@ -1,6 +1,7 @@
 from datetime import date
 from random import choice, random
 
+from django.db.models import Manager
 from django.test import TestCase
 from predicate import P
 
@@ -162,3 +163,117 @@ class GroupTest(TestCase):
         self.assertTrue(por1.eval(self.testobj))
         self.assertFalse(por2.eval(self.testobj))
 
+
+class DictTest(TestCase):
+    def test_from_dict(self):
+        p = P.from_dict({
+            'connector': P.AND,
+            'negated': False,
+            'children': [
+                ['is_a_corgi', True],
+                ['first_name__iexact', u'stumphrey'],
+            ]
+        })
+        self.assertEqual(p.connector, P.AND)
+        self.assertEqual(p.children[0], ['is_a_corgi', True])
+        self.assertEqual(p.children[1], ['first_name__iexact', u'stumphrey'])
+
+    def test_to_dict(self):
+        p = P(is_a_corgi=True, first_name__iexact=u'stumphrey')
+        p.negated = True
+        p_as_dict = p.to_dict()
+        children = p_as_dict.pop('children')
+        self.assertEqual(p_as_dict, {'connector': P.AND, 'negated': True})
+        self.assertEqual(set(children), set(p.children))
+        p.connector = 'OR'
+        self.assertEqual(p.to_dict()['connector'], P.OR)
+
+    def test_match_exact(self):
+        p = P(profile__is_a_corgi=True)
+        self.assertTrue({'profile': {'is_a_corgi': True}} in p)
+
+    def test_match_isnull(self):
+        p = P(features__stumpers__isnull=True)
+        self.assertTrue({} in p)
+        self.assertTrue({'features': None} in p)
+        self.assertTrue({'features': {'stumpers': None}} in p)
+        self.assertTrue({'features': {'stumpers': False}} not in p)
+
+    def test_match_multiple(self):
+        p = P(is_a_corgi=True, first_name__iexact=u'stumphrey')
+        self.assertTrue({'is_a_corgi': True, 'first_name': 'Stumphrey'} in p)
+        self.assertFalse({'is_a_corgi': True, 'first_name': 'Corgnelius'} in p)
+
+    def test_match_index(self):
+        p = P(favorites__0__iexact=u'frisking')
+        self.assertTrue({'favorites': ['frisking', 'walks']} in p)
+        self.assertTrue({'favorites': ['vet visits']} not in p)
+
+    def test_match_in(self):
+        p = P(favorites__in=['frisking', 'walks'])
+        self.assertTrue({'favorites': ['frisking', 'walks', 'kibble']} in p)
+        self.assertTrue({'favorites': ['frisking', 'walks']} in p)
+        self.assertTrue({'favorites': ['frisking']} in p)
+        self.assertTrue({'favorites': ['vet visits']} not in p)
+
+    def test_match_any(self):
+        p = P(favorites__any=u'frisking')
+        self.assertTrue({'favorites': ['walks', 'frisking', 'kibble']} in p)
+
+    def test_lookup_ambiguous_year_attr(self):
+        p = P(start_date__year__exact=1994)
+        self.assertTrue({'start_date': {'year': 1994}} in p)
+
+    def test_match_attr_in(self):
+        p = P(favorites__slug__in=['frisking', 'walks'])
+        self.assertTrue({
+            'favorites': [
+                {'slug': 'frisking'},
+                {'slug': 'walks'},
+                {'slug': 'kibble'},
+            ]
+        } in p)
+        self.assertTrue({
+            'favorites': [
+                {'slug': 'frisking'},
+                {'slug': 'walks'},
+            ]
+        } in p)
+        self.assertTrue({'favorites': [{'slug': 'frisking'}]} in p)
+        self.assertTrue({'favorites': [{'slug': 'vet visits'}]} not in p)
+
+    def test_empty_predicate(self):
+        self.assertTrue({} in P())
+        self.assertTrue({'name': 'Mr. Corgsly'} in P())
+
+    def test_combination(self):
+        p1 = P(is_member=True) | P(addresses__city__iexact=u'austin')
+        self.assertEqual(p1.connector, 'OR')
+        p2 = P(attended_festival=True)
+        p_combined = p1 & p2
+        self.assertEqual(p_combined.connector, 'AND')
+        self.assertEqual(p_combined, p2 & p1)
+
+
+class M2MTest(TestCase):
+    def test_match_m2m_in(self):
+        p = P(favorites__slug__in=['frisking', 'walks'])
+        favorites = Manager()
+        o = {"favorites": favorites}
+        favorites.values_list = lambda *a, **k: ['frisking', 'walks', 'kibble']
+        self.assertTrue(o in p)
+        favorites.values_list = lambda *a, **k: ['frisking', 'walks']
+        self.assertTrue(o in p)
+        favorites.values_list = lambda *a, **k: ['frisking']
+        self.assertTrue(o in p)
+        favorites.values_list = lambda *a, **k: ['vet visits']
+        self.assertTrue(o not in p)
+
+    def test_match_m2m_index(self):
+        p = P(favorites__0__slug=u'frisking')
+        favorites = Manager()
+        o = {"favorites": favorites}
+        favorites.all = lambda: [{'slug': 'frisking'}, {'slug': 'walks'}]
+        self.assertTrue(o in p)
+        favorites.all = lambda: [{'slug': 'vet visits'}]
+        self.assertTrue(o not in p)
