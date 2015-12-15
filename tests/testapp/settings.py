@@ -1,4 +1,4 @@
-# Django settings for testproject project.
+# Django settings for testapp project.
 
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
@@ -97,10 +97,10 @@ MIDDLEWARE_CLASSES = (
     # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
-ROOT_URLCONF = 'testproject.urls'
+ROOT_URLCONF = 'testapp.urls'
 
 # Python dotted path to the WSGI application used by Django's runserver.
-WSGI_APPLICATION = 'testproject.wsgi.application'
+WSGI_APPLICATION = 'testapp.wsgi.application'
 
 TEMPLATE_DIRS = (
     # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
@@ -109,8 +109,8 @@ TEMPLATE_DIRS = (
 )
 
 INSTALLED_APPS = (
-        # 'django_nose',
-        'testapp',
+        'django_nose',
+        'tests.testapp',
 )
 
 # A sample logging configuration. The only tangible logging
@@ -141,3 +141,5 @@ LOGGING = {
         },
     }
 }
+
+TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
