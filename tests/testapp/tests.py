@@ -17,6 +17,7 @@ brown
 black
 white""".split('\n')
 
+
 def make_test_objects():
     made = []
 
@@ -29,6 +30,7 @@ def make_test_objects():
         t.save()
         made.append(t)
 
+
 class RelationshipFollowTest(TestCase):
     def setUp(self):
         make_test_objects()
@@ -40,6 +42,7 @@ class RelationshipFollowTest(TestCase):
         p2 = P(parent__parent__int_value__gt=10)
         obj = TestObj.objects.filter(parent__parent__int_value__gt=10)[0]
         self.assertTrue(p2.eval(obj))
+
 
 class ComparisonFunctionsTest(TestCase):
 
@@ -161,4 +164,3 @@ class GroupTest(TestCase):
         por2 = p2 | p3
         self.assertTrue(por1.eval(self.testobj))
         self.assertFalse(por2.eval(self.testobj))
-
