@@ -2,3 +2,5 @@
 docs/_build
 *.egg-info
 test.db
+.tox
+/htmlcov
