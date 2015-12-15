@@ -2,9 +2,11 @@ from datetime import date
 from random import choice, random
 
 from django.test import TestCase
-from predicate import P
+from nose.tools import assert_equal
 
+from predicate import P
 from models import TestObj
+
 
 colors = """red
 blue
@@ -16,6 +18,16 @@ violet
 brown
 black
 white""".split('\n')
+
+
+def assert_orm_invariant(predicate, instance):
+    """
+    Asserts the fundamental invariant that the predicate should match the
+    instance iff the ORM backend matches the instance.
+    """
+    queryset = type(instance)._default_manager.filter(predicate,
+                                                      pk=instance.pk)
+    assert_equal(instance in predicate, queryset.exists())
 
 
 def make_test_objects():
@@ -32,16 +44,24 @@ def make_test_objects():
 
 
 class RelationshipFollowTest(TestCase):
-    def setUp(self):
-        make_test_objects()
 
-    def test_follow_relationship(self):
+    def test_random_follow_relationship(self):
+        make_test_objects()
         p1 = P(parent__int_value__gt=10)
         obj = TestObj.objects.filter(parent__int_value__gt=10)[0]
         self.assertTrue(p1.eval(obj))
         p2 = P(parent__parent__int_value__gt=10)
         obj = TestObj.objects.filter(parent__parent__int_value__gt=10)[0]
         self.assertTrue(p2.eval(obj))
+
+    def test_children_relationship(self):
+        parent = TestObj.objects.create(int_value=100)
+        TestObj.objects.bulk_create([
+            TestObj(int_value=i, parent=parent) for i in range(3)
+        ])
+        assert_orm_invariant(P(children__int_value=2), parent)
+        self.assertIn(parent, TestObj.objects.filter(P(children__int_value=2)))
+        self.assertIn(parent, P(children__int_value=2))
 
 
 class ComparisonFunctionsTest(TestCase):
