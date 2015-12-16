@@ -159,7 +159,16 @@ class LookupExpression(object):
         return lookup_field.day == self.value
 
     def _week_day(self, lookup_model, lookup_field):
-        return lookup_field.weekday() == self.value
+        # Counterintuitively, the __week_day lookup does not use the .weekday()
+        # python method, but instead some custom django weekday thing
+        # (Sunday=1 to Saturday=7). This is equivalent to:
+        # (isoweekday mod 7) + 1.
+        # https://docs.python.org/2/library/datetime.html#datetime.date.isoweekday
+        #
+        # See docs at https://docs.djangoproject.com/en/dev/ref/models/querysets/#week-day
+        # and https://code.djangoproject.com/ticket/10345 for additional
+        # discussion.
+        return (lookup_field.isoweekday() % 7) + 1 == self.value
 
     def _isnull(self, lookup_model, lookup_field):
         if self.value:
