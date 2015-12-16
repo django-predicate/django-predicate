@@ -5,6 +5,7 @@ from django.test import TestCase
 from nose.tools import assert_equal
 
 from predicate import P
+from predicate.predicate import LookupExpression
 from models import TestObj
 
 
@@ -69,6 +70,15 @@ class RelationshipFollowTest(TestCase):
         assert_universal_invariants(P(children__int_value=2), parent)
 
 
+class TestLookupExpression(TestCase):
+    def test_get_field_on_reverse_foreign_key(self):
+        parent = TestObj.objects.create(int_value=100)
+        TestObj.objects.bulk_create([
+            TestObj(int_value=i, parent=parent) for i in range(3)
+        ])
+        expr = LookupExpression(('children__int_value', 2))
+        lookup_model, lookup_field, lookup_type = expr.get_field(parent)
+        self.assertEqual(set(lookup_field), set(range(3)))
 
 
 class ComparisonFunctionsTest(TestCase):
