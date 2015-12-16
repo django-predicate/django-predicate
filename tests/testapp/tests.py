@@ -20,14 +20,17 @@ black
 white""".split('\n')
 
 
-def assert_orm_invariant(predicate, instance):
+def assert_universal_invariants(predicate, instance):
     """
-    Asserts the fundamental invariant that the predicate should match the
-    instance iff the ORM backend matches the instance.
+    Asserts fundamental invariants that should always hold:
+    - The predicate should match the instance iff the ORM backend matches the
+      instance.
+    - Negation of the predicate should negate membership.
     """
     queryset = type(instance)._default_manager.filter(predicate,
                                                       pk=instance.pk)
     assert_equal(instance in predicate, queryset.exists())
+    assert_equal(instance in predicate, not(instance in ~predicate))
 
 
 def make_test_objects():
@@ -54,14 +57,18 @@ class RelationshipFollowTest(TestCase):
         obj = TestObj.objects.filter(parent__parent__int_value__gt=10)[0]
         self.assertTrue(p2.eval(obj))
 
-    def test_children_relationship(self):
+    def test_children_relationship_single(self):
         parent = TestObj.objects.create(int_value=100)
         TestObj.objects.bulk_create([
             TestObj(int_value=i, parent=parent) for i in range(3)
         ])
-        assert_orm_invariant(P(children__int_value=2), parent)
         self.assertIn(parent, TestObj.objects.filter(P(children__int_value=2)))
-        self.assertIn(parent, P(children__int_value=2))
+        pred = P(children__int_value=2)
+        pred.foo = True
+        self.assertIn(parent, pred)
+        assert_universal_invariants(P(children__int_value=2), parent)
+
+
 
 
 class ComparisonFunctionsTest(TestCase):
@@ -159,7 +166,7 @@ class ComparisonFunctionsTest(TestCase):
         self.assertFalse(self.testobj in p2)
 
 
-class GroupTest(TestCase):
+class TestBooleanOperations(TestCase):
 
     def setUp(self):
         self.testobj = TestObj(
@@ -184,3 +191,7 @@ class GroupTest(TestCase):
         por2 = p2 | p3
         self.assertTrue(por1.eval(self.testobj))
         self.assertFalse(por2.eval(self.testobj))
+
+    def test_not(self):
+        self.assertIn(self.testobj, P(int_value=self.testobj.int_value))
+        self.assertNotIn(self.testobj, ~P(int_value=self.testobj.int_value))
