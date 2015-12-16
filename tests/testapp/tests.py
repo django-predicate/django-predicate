@@ -1,4 +1,6 @@
 from datetime import date
+from datetime import datetime
+from datetime import timedelta
 from random import choice, random
 from unittest import expectedFailure
 
@@ -8,8 +10,11 @@ from nose.tools import assert_equal
 
 from predicate import P
 from predicate.predicate import LookupExpression
+from models import CustomRelatedNameOneToOneModel
+from models import ForeignKeyModel
+from models import M2MModel
+from models import OneToOneModel
 from models import TestObj
-
 
 colors = """red
 blue
@@ -84,6 +89,102 @@ class RelationshipFollowTest(TestCase):
         self.assertIn(parent, pred)
         assert_universal_invariants(OrmP(children__int_value=2), parent)
 
+    @expectedFailure  # FIXME: Bug with reverse relationships.
+    def test_direct_one_to_one_relationships(self):
+        test_obj = TestObj.objects.create(int_value=1)
+        other_test_obj = TestObj.objects.create(int_value=2)
+        one_to_one = OneToOneModel.objects.create(
+            test_obj=test_obj, int_value=10)
+
+        self.assertIn(one_to_one, OrmP(test_obj=test_obj))
+        self.assertIn(one_to_one, OrmP(test_obj__int_value=1))
+
+        self.assertNotIn(one_to_one, OrmP(test_obj=other_test_obj))
+        self.assertNotIn(one_to_one, OrmP(test_obj__int_value=2))
+
+    @expectedFailure  # FIXME: Bug with reverse relationships.
+    def test_reverse_one_to_one_relationships(self):
+        test_obj = TestObj.objects.create()
+        one_to_one = OneToOneModel.objects.create(
+            test_obj=test_obj, int_value=10)
+        other_one_to_one = OneToOneModel.objects.create()
+
+        self.assertNotIn(test_obj, OrmP(onetoonemodel=other_one_to_one))
+        self.assertNotIn(test_obj, OrmP(onetoonemodel__int_value=20))
+
+        self.assertIn(test_obj, OrmP(onetoonemodel=one_to_one))
+        self.assertIn(test_obj, OrmP(onetoonemodel__int_value=10))
+
+    @expectedFailure  # FIXME: Bug with reverse relationships.
+    def test_reverse_one_to_one_relationships_custom_related_name(self):
+        test_obj = TestObj.objects.create()
+        custom_one_to_one = CustomRelatedNameOneToOneModel.objects.create(
+            test_obj=test_obj, int_value=10)
+        other_custom_one_to_one = CustomRelatedNameOneToOneModel.objects.create()
+
+        self.assertNotIn(test_obj,
+                         OrmP(custom_one_to_one=other_custom_one_to_one))
+        self.assertNotIn(test_obj, OrmP(custom_one_to_one__int_value=20))
+
+        self.assertIn(test_obj, OrmP(custom_one_to_one=custom_one_to_one))
+        self.assertIn(test_obj, OrmP(custom_one_to_one__int_value=10))
+
+    @expectedFailure  # FIXME: Bug with following direct relationships.
+    def test_foreign_key_default_name(self):
+        test_obj = TestObj.objects.create(int_value=20)
+        fkey = ForeignKeyModel.objects.create(test_obj=test_obj)
+        self.assertIn(fkey, OrmP(test_obj=test_obj))
+        self.assertIn(fkey, OrmP(test_obj__int_value=20))
+        self.assertNotIn(fkey, OrmP(test_obj__int_value=10))
+
+    @expectedFailure  # FIXME: Bug with reverse relationship names.
+    def test_reverse_foreign_key_default_name(self):
+        test_obj = TestObj.objects.create(int_value=20)
+        fkey = ForeignKeyModel.objects.create(test_obj=test_obj, int_value=30)
+        other_fkey = ForeignKeyModel.objects.create()
+        self.assertIn(fkey, test_obj.foreignkeymodel_set.all())
+        self.assertIn(test_obj, OrmP(foreignkeymodel=fkey))
+        self.assertIn(test_obj, OrmP(foreignkeymodel__int_value=30))
+        self.assertNotIn(test_obj, OrmP(foreignkeymodel=other_fkey))
+
+    @expectedFailure  # FIXME: Bug with ManyToManyFields.
+    def test_m2m(self):
+        test_obj = TestObj.objects.create(int_value=20)
+        m2m = test_obj.m2ms.create(int_value=10)
+        self.assertIn(test_obj, OrmP(m2ms=m2m))
+        self.assertIn(test_obj, OrmP(m2ms__int_value=10))
+
+        m2m2 = M2MModel.objects.create(int_value=30)
+        self.assertNotIn(test_obj, OrmP(m2ms=m2m2))
+        self.assertNotIn(test_obj, OrmP(m2ms__int_value=30))
+
+    @expectedFailure
+    def test_joint_conditions(self):
+        """
+        Test that joint conditions must be on the same aliased instance.
+
+        In particular P(rel__attr1=val1, rel__attr2=val2) produces only a
+        single join, so the two conditions must be jointly satisfied on the
+        same database row.
+        """
+        test_obj = TestObj.objects.create()
+        test_obj.m2ms.create(int_value=10, char_value='foo')
+        test_obj.m2ms.create(int_value=20, char_value='bar')
+
+        self.assertNotIn(
+            test_obj,
+            TestObj.objects.filter(m2ms__int_value=10, m2ms__char_value='bar'))
+        self.assertIn(
+            test_obj,
+            TestObj.objects.filter(m2ms__int_value=10, m2ms__char_value='foo'))
+
+        self.assertNotIn(
+            test_obj,
+            OrmP(m2ms__int_value=10, m2ms__char_value='bar'))
+        self.assertIn(
+            test_obj,
+            OrmP(m2ms__int_value=10, m2ms__char_value='foo'))
+
 
 class TestLookupExpression(TestCase):
     @expectedFailure  # FIXME: Bug with reverse relationships.
@@ -101,9 +202,11 @@ class ComparisonFunctionsTest(TestCase):
 
     def setUp(self):
         self.testobj = TestObj.objects.create(
-                char_value="hello world",
-                int_value=50,
-                date_value=date.today())
+            char_value="hello world",
+            int_value=50,
+            date_value=date.today(),
+            datetime_value=datetime.now(),
+        )
 
     def test_exact(self):
         self.assertTrue(OrmP(char_value__exact='hello world').eval(self.testobj))
@@ -134,6 +237,27 @@ class ComparisonFunctionsTest(TestCase):
         self.assertTrue(OrmP(int_value__gt=20.0).eval(self.testobj))
         self.assertFalse(OrmP(int_value__gt=80.0).eval(self.testobj))
         self.assertFalse(OrmP(int_value__gt=50).eval(self.testobj))
+
+    @expectedFailure  # FIXME: fix datetime casting bugs.
+    def test_datetime_cast(self):
+        """
+        Tests that the Django ORM casting rules are obeyed in filtering by
+        dates and times.
+        """
+        today = date.today()
+        now = datetime.now()
+        self.assertIn(
+            self.testobj,
+            OrmP(datetime_value__gt=today - timedelta(days=1)))
+        self.assertNotIn(
+            self.testobj,
+            OrmP(datetime_value__gt=today + timedelta(days=1)))
+        self.assertIn(
+            self.testobj,
+            OrmP(date_value__gt=now - timedelta(days=1)))
+        self.assertNotIn(
+            self.testobj,
+            OrmP(date_value__gt=now + timedelta(days=1)))
 
     def test_gte(self):
         self.assertTrue(OrmP(int_value__gte=20).eval(self.testobj))
@@ -194,19 +318,28 @@ class ComparisonFunctionsTest(TestCase):
         self.assertTrue(OrmP(char_value__iregex='Hel*o').eval(self.testobj))
 
     def test_in_operator(self):
-        p = OrmP(int_value__lte=50)
-        p2 = OrmP(int_value__lt=10)
+        p = OrmP(int_value__in=[50, 60])
+        p2 = OrmP(int_value__in=[60, 70])
         self.assertTrue(self.testobj in p)
         self.assertFalse(self.testobj in p2)
+
+    # FIXME: FieldDoesNotExist: TestObj has no field named 'pk'
+    @expectedFailure
+    def test_pk_casting(self):
+        pk_values_list = TestObj.objects.values_list('pk')
+        self.assertIn(
+            self.testobj, TestObj.objects.filter(pk__in=pk_values_list))
+        self.assertIn(
+            self.testobj, OrmP(pk__in=pk_values_list))
 
 
 class TestBooleanOperations(TestCase):
 
     def setUp(self):
         self.testobj = TestObj.objects.create(
-                char_value="hello world",
-                int_value=50,
-                date_value=date.today())
+            char_value="hello world",
+            int_value=50,
+            date_value=date.today())
 
     def test_and(self):
         p1 = OrmP(char_value__contains='hello')
