@@ -30,6 +30,8 @@ class P(Q):
 
     # allow the use of the 'in' operator for membership testing
     def __contains__(self, obj):
+        # TODO: This overrides Q's __contains__ method. It should only have
+        # the custom behavior for non-Node objects.
         return self.eval(obj)
 
     def eval(self, instance):
@@ -38,7 +40,11 @@ class P(Q):
         """
         evaluators = {"AND": all, "OR": any}
         evaluator = evaluators[self.connector]
-        return (evaluator(c.eval(instance) for c in eval_wrapper(self.children)))
+        ret = evaluator(c.eval(instance) for c in eval_wrapper(self.children))
+        if self.negated:
+            return not ret
+        else:
+            return ret
 
     def to_identifier(self):
         s = ""
@@ -153,7 +159,16 @@ class LookupExpression(object):
         return lookup_field.day == self.value
 
     def _week_day(self, lookup_model, lookup_field):
-        return lookup_field.weekday() == self.value
+        # Counterintuitively, the __week_day lookup does not use the .weekday()
+        # python method, but instead some custom django weekday thing
+        # (Sunday=1 to Saturday=7). This is equivalent to:
+        # (isoweekday mod 7) + 1.
+        # https://docs.python.org/2/library/datetime.html#datetime.date.isoweekday
+        #
+        # See docs at https://docs.djangoproject.com/en/dev/ref/models/querysets/#week-day
+        # and https://code.djangoproject.com/ticket/10345 for additional
+        # discussion.
+        return (lookup_field.isoweekday() % 7) + 1 == self.value
 
     def _isnull(self, lookup_model, lookup_field):
         if self.value:
