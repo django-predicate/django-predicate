@@ -10,6 +10,7 @@ QUERY_TERMS = set([
     'month', 'day', 'week_day', 'isnull', 'search', 'regex', 'iregex',
 ])
 
+
 def eval_wrapper(children):
     """
     generator to yield child nodes, or to wrap filter expressions
@@ -19,6 +20,7 @@ def eval_wrapper(children):
             yield child
         elif isinstance(child, tuple) and len(child) == 2:
             yield LookupExpression(child)
+
 
 class P(Q):
     """
@@ -53,7 +55,8 @@ class P(Q):
                 s += c.to_identifier()
             else:
                 s += ''.join([str(val) for val in c])
-        return s.replace('_','')
+        return s.replace('_', '')
+
 
 class LookupExpression(object):
     """
@@ -188,5 +191,3 @@ class LookupExpression(object):
 
     def _iregex(self, lookup_model, lookup_field):
         return bool(re.search(self.value, lookup_field, flags=re.I))
-
-

@@ -5,7 +5,6 @@ import sys
 os.environ.setdefault("DJANGO_SETTINGS_MODULE",
                       "tests.testapp.settings")
 
-from django.conf import settings
 from django_nose import NoseTestSuiteRunner
 
 
