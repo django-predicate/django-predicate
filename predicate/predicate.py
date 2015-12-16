@@ -38,7 +38,11 @@ class P(Q):
         """
         evaluators = {"AND": all, "OR": any}
         evaluator = evaluators[self.connector]
-        return (evaluator(c.eval(instance) for c in eval_wrapper(self.children)))
+        ret = evaluator(c.eval(instance) for c in eval_wrapper(self.children))
+        if self.negated:
+            return not ret
+        else:
+            return ret
 
     def to_identifier(self):
         s = ""
