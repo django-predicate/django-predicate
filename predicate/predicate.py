@@ -30,6 +30,8 @@ class P(Q):
 
     # allow the use of the 'in' operator for membership testing
     def __contains__(self, obj):
+        # TODO: This overrides Q's __contains__ method. It should only have
+        # the custom behavior for non-Node objects.
         return self.eval(obj)
 
     def eval(self, instance):
