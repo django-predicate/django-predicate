@@ -69,7 +69,7 @@ class LookupExpression(object):
         self.field = None
 
     def get_field(self, instance):
-        lookup_type = 'exact' # Default lookup type
+        lookup_type = 'exact'  # Default lookup type
         parts = self.lookup.split(LOOKUP_SEP)
         num_parts = len(parts)
         if (len(parts) > 1 and parts[-1] in QUERY_TERMS):
@@ -87,13 +87,13 @@ class LookupExpression(object):
                 # to continue traversing relations.
                 if (counter + 1) < num_parts:
                     try:
-                        dummy = lookup_model._meta.get_field(field_name).rel.to
-                        lookup_model = lookup_field
-                        # print lookup_model
+                        lookup_model._meta.get_field(field_name).rel.to
                     except AttributeError:
                         # # Not a related field. Bail out.
                         lookup_type = parts.pop()
                         return (lookup_model, lookup_field, lookup_type)
+                    else:
+                        lookup_model = lookup_field
         else:
             return (instance, getattr(instance, parts[0]), lookup_type)
 
@@ -175,9 +175,9 @@ class LookupExpression(object):
 
     def _isnull(self, lookup_model, lookup_field):
         if self.value:
-            return lookup_field == None
+            return lookup_field is None
         else:
-            return lookup_field != None
+            return lookup_field is not None
 
     def _search(self, lookup_model, lookup_field):
         return self._contains(lookup_model, lookup_field)
