@@ -3,6 +3,7 @@ import datetime
 from django.db import models
 from nose.tools import nottest
 
+
 class Base(models.Model):
     class Meta:
         abstract = True

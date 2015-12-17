@@ -1,4 +1,5 @@
 import os
+import re
 
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
@@ -11,11 +12,15 @@ MANAGERS = ADMINS
 
 _BACKEND = os.environ.get("DB_BACKEND", "sqlite3")
 
+# Namespace test database by the tox environment to allow detox to run tests
+# in parallel.
+_ENVNAME = re.sub(r'\W', '', os.environ.get("TOXENV", ""))
+
 if _BACKEND == 'sqlite3':
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': 'test.db',
+            'NAME': 'test%s.db' % _ENVNAME,
             'USER': '',
             'PASSWORD': '',
             'HOST': '',
@@ -25,7 +30,7 @@ if _BACKEND == 'sqlite3':
 elif _BACKEND == 'postgresql_psycopg2':
     DATABASES = {
         'default': {
-            'NAME': 'predicatedb',
+            'NAME': 'predicatedb%s' % _ENVNAME,
             'ENGINE': 'django.db.backends.postgresql_psycopg2',
             'USER': 'django',
             'PASSWORD': 'secret',
