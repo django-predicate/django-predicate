@@ -8,6 +8,9 @@ from django.test import skipIfDBFeature
 from django.test import TestCase
 from nose.tools import assert_equal
 
+from predicate.predicate import GET
+from predicate.predicate import LookupComponent
+from predicate.predicate import LookupNode
 from predicate import P
 from predicate.predicate import LookupEvaluator
 from models import CustomRelatedNameOneToOneModel
@@ -354,3 +357,71 @@ class TestBooleanOperations(TestCase):
     def test_not(self):
         self.assertIn(self.testobj, OrmP(int_value=self.testobj.int_value))
         self.assertNotIn(self.testobj, ~OrmP(int_value=self.testobj.int_value))
+
+
+class TestLookupNode(TestCase):
+    def test_lookup_parsing(self):
+        self.assertEqual(
+            LookupComponent.parse('foo__bar__in'),
+            [LookupComponent('foo'), LookupComponent('bar'), LookupComponent('in')]
+        )
+
+    def _build_lookup_node_and_assert_invariants(self, lookups):
+        """
+        Builds a LookupNode from the given lookups, and asserts invariants for
+        the class.
+        """
+        node = LookupNode(lookups=lookups)
+        self.assertEqual(node.to_dict(), lookups)
+        self.assertEqual(
+            {lookup: node[lookup].value for lookup in lookups},
+            lookups)
+        return node
+
+    def test_scalar(self):
+        scalar = self._build_lookup_node_and_assert_invariants(
+            {LookupComponent.EMPTY: 1})
+        self.assertEqual(scalar.value, 1)
+
+    def test_missing_lookup_raises_KeyError(self):
+        node = self._build_lookup_node_and_assert_invariants({})
+        with self.assertRaises(KeyError):
+            node['foo']
+
+    def test_nested_lookups(self):
+        node = self._build_lookup_node_and_assert_invariants(dict(
+            foo__bar__in=[1, 2],
+            foo__bar__baz=6,
+        ))
+        self.assertEqual(node.children.keys(), [LookupComponent('foo')])
+        self.assertEqual(node['foo']['bar']['in'].value, [1, 2])
+        self.assertEqual(node['foo']['bar'].to_dict(), {'in': [1, 2], 'baz': 6})
+
+    def assert_orm_invariant_for_lookup_node(self, node, obj):
+        orm_values = (
+            type(obj)._default_manager.filter(pk=obj.pk)
+            .values(*node.to_dict().keys()))
+        node_values = node.values(obj)
+
+        def _make_hashable(d):
+            return frozenset(d.iteritems())
+
+        self.assertEqual(
+            set(map(_make_hashable, orm_values)),
+            set(map(_make_hashable, node_values))
+        )
+
+    def test_lookup_node_values(self):
+        test_obj = TestObj.objects.create()
+        test_obj.m2ms.create(int_value=10, char_value='foo')
+        test_obj.m2ms.create(int_value=20, char_value='bar')
+        node = LookupNode(lookups=dict(
+            m2ms__int_value=GET,
+            m2ms__char_value=GET,
+        ))
+        self.assert_orm_invariant_for_lookup_node(node, test_obj)
+
+    def test_lookup_node_multiple_values(self):
+        node = self._build_lookup_node_and_assert_invariants(
+            {'int_value': 50, 'int_value__lt': 20})
+        self.assertEqual(node['int_value'].to_dict(), {'': 50, 'lt': 20})
