@@ -78,7 +78,6 @@ class RelationshipFollowTest(TestCase):
         obj = TestObj.objects.filter(parent__parent__int_value__gt=10)[0]
         self.assertTrue(p2.eval(obj))
 
-    @expectedFailure  # FIXME: Bug with reverse relationships.
     def test_children_relationship_single(self):
         parent = TestObj.objects.create(int_value=100)
         TestObj.objects.bulk_create([
@@ -89,7 +88,6 @@ class RelationshipFollowTest(TestCase):
         self.assertIn(parent, pred)
         assert_universal_invariants(OrmP(children__int_value=2), parent)
 
-    @expectedFailure  # FIXME: Bug with reverse relationships.
     def test_direct_one_to_one_relationships(self):
         test_obj = TestObj.objects.create(int_value=1)
         other_test_obj = TestObj.objects.create(int_value=2)
@@ -102,7 +100,6 @@ class RelationshipFollowTest(TestCase):
         self.assertNotIn(one_to_one, OrmP(test_obj=other_test_obj))
         self.assertNotIn(one_to_one, OrmP(test_obj__int_value=2))
 
-    @expectedFailure  # FIXME: Bug with reverse relationships.
     def test_reverse_one_to_one_relationships(self):
         test_obj = TestObj.objects.create()
         one_to_one = OneToOneModel.objects.create(
@@ -115,7 +112,6 @@ class RelationshipFollowTest(TestCase):
         self.assertIn(test_obj, OrmP(onetoonemodel=one_to_one))
         self.assertIn(test_obj, OrmP(onetoonemodel__int_value=10))
 
-    @expectedFailure  # FIXME: Bug with reverse relationships.
     def test_reverse_one_to_one_relationships_custom_related_name(self):
         test_obj = TestObj.objects.create()
         custom_one_to_one = CustomRelatedNameOneToOneModel.objects.create(
@@ -129,7 +125,6 @@ class RelationshipFollowTest(TestCase):
         self.assertIn(test_obj, OrmP(custom_one_to_one=custom_one_to_one))
         self.assertIn(test_obj, OrmP(custom_one_to_one__int_value=10))
 
-    @expectedFailure  # FIXME: Bug with following direct relationships.
     def test_foreign_key_default_name(self):
         test_obj = TestObj.objects.create(int_value=20)
         fkey = ForeignKeyModel.objects.create(test_obj=test_obj)
@@ -137,7 +132,6 @@ class RelationshipFollowTest(TestCase):
         self.assertIn(fkey, OrmP(test_obj__int_value=20))
         self.assertNotIn(fkey, OrmP(test_obj__int_value=10))
 
-    @expectedFailure  # FIXME: Bug with reverse relationship names.
     def test_reverse_foreign_key_default_name(self):
         test_obj = TestObj.objects.create(int_value=20)
         fkey = ForeignKeyModel.objects.create(test_obj=test_obj, int_value=30)
@@ -147,7 +141,6 @@ class RelationshipFollowTest(TestCase):
         self.assertIn(test_obj, OrmP(foreignkeymodel__int_value=30))
         self.assertNotIn(test_obj, OrmP(foreignkeymodel=other_fkey))
 
-    @expectedFailure  # FIXME: Bug with ManyToManyFields.
     def test_m2m(self):
         test_obj = TestObj.objects.create(int_value=20)
         m2m = test_obj.m2ms.create(int_value=10)
@@ -187,7 +180,6 @@ class RelationshipFollowTest(TestCase):
 
 
 class TestLookupExpression(TestCase):
-    @expectedFailure  # FIXME: Bug with reverse relationships.
     def test_get_field_on_reverse_foreign_key(self):
         parent = TestObj.objects.create(int_value=100)
         TestObj.objects.bulk_create([

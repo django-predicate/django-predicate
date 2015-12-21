@@ -4,3 +4,4 @@ docs/_build
 test.db
 .tox
 /htmlcov
+/dist

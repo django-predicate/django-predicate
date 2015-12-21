@@ -1,5 +1,7 @@
 import re
+from itertools import chain
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models.query_utils import Q
 
 LOOKUP_SEP = '__'
@@ -68,34 +70,36 @@ class LookupExpression(object):
         self.lookup, self.value = expr
         self.field = None
 
+    def get_field_from_objs(self, lookup_name, objs):
+        values = []
+        for obj in objs:
+            if obj is None:
+                values.append(None)
+                continue
+            field = obj._meta.get_field(lookup_name)
+            direct = not field.auto_created or field.concrete
+            accessor = lookup_name if direct else field.get_accessor_name()
+            try:
+                result = getattr(obj, accessor)
+            except ObjectDoesNotExist:
+                values.append(None)
+            else:
+                if hasattr(result, 'all'):
+                    values.extend(result.all())
+                else:
+                    values.append(result)
+        return values
+
     def get_field(self, instance):
-        lookup_type = 'exact'  # Default lookup type
         parts = self.lookup.split(LOOKUP_SEP)
-        num_parts = len(parts)
-        if (len(parts) > 1 and parts[-1] in QUERY_TERMS):
-            # Traverse the lookup query to distinguish related fields from
-            # lookup types.
-            lookup_model = instance
-            for counter, field_name in enumerate(parts):
-                try:
-                    lookup_field = getattr(lookup_model, field_name)
-                except AttributeError:
-                    # Not a field. Bail out.
-                    lookup_type = parts.pop()
-                    return (lookup_model, lookup_field, lookup_type)
-                # Unless we're at the end of the list of lookups, let's attempt
-                # to continue traversing relations.
-                if (counter + 1) < num_parts:
-                    try:
-                        lookup_model._meta.get_field(field_name).rel.to
-                    except AttributeError:
-                        # # Not a related field. Bail out.
-                        lookup_type = parts.pop()
-                        return (lookup_model, lookup_field, lookup_type)
-                    else:
-                        lookup_model = lookup_field
-        else:
-            return (instance, getattr(instance, parts[0]), lookup_type)
+
+        lookup_type = 'exact'  # Default lookup type
+        if parts[-1] in QUERY_TERMS:
+            lookup_type = parts.pop()
+        values = [instance]
+        for part in parts:
+            values = self.get_field_from_objs(part, values)
+        return instance, values, lookup_type
 
     def eval(self, instance):
         """
@@ -110,56 +114,77 @@ class LookupExpression(object):
     # Comparison functions
 
     def _exact(self, lookup_model, lookup_field):
-        return lookup_field == self.value
-
-    def _iexact(self, lookup_model, lookup_field):
-        return lookup_field.lower() == self.value.lower()
-
-    def _contains(self, lookup_model, lookup_field):
         return self.value in lookup_field
 
+    def _iexact(self, lookup_model, lookup_field):
+        expected = self.value.lower()
+        return any(value is not None and expected == value.lower()
+                   for value in lookup_field)
+
+    def _contains(self, lookup_model, lookup_field):
+        return any(value is not None and self.value in value
+                   for value in lookup_field)
+
     def _icontains(self, lookup_model, lookup_field):
-        return self.value.lower() in lookup_field.lower()
+        expected = self.value.lower()
+        return any(value is not None and expected in value
+                   for value in lookup_field)
 
     def _gt(self, lookup_model, lookup_field):
-        return lookup_field > self.value
+        return any(value is not None and value > self.value
+                   for value in lookup_field)
 
     def _gte(self, lookup_model, lookup_field):
-        return lookup_field >= self.value
+        return any(value is not None and value >= self.value
+                   for value in lookup_field)
 
     def _lt(self, lookup_model, lookup_field):
-        return lookup_field < self.value
+        return any(value is not None and value < self.value
+                   for value in lookup_field)
 
     def _lte(self, lookup_model, lookup_field):
-        return lookup_field <= self.value
+        return any(value is not None and value <= self.value
+                   for value in lookup_field)
 
     def _startswith(self, lookup_model, lookup_field):
-        return lookup_field.startswith(self.value)
+        return any(value is not None and value.startswith(self.value)
+                   for value in lookup_field)
 
     def _istartswith(self, lookup_model, lookup_field):
-        return lookup_field.lower().startswith(self.value.lower())
+        expected_value = self.value.lower()
+        return any(
+            value is not None and value.lower().startswith(expected_value)
+            for value in lookup_field)
 
     def _endswith(self, lookup_model, lookup_field):
-        return lookup_field.endswith(self.value)
+        return any(
+            value is not None and value.lower().endswith(self.value)
+            for value in lookup_field)
 
     def _iendswith(self, lookup_model, lookup_field):
-        return lookup_field.lower().endswith(self.value.lower())
+        expected_value = self.value.lower()
+        return any(
+            value is not None and value.lower().endswith(expected_value)
+            for value in lookup_field)
 
     def _in(self, lookup_model, lookup_field):
-        return lookup_field in self.value
+        return bool(set(lookup_field) & set(self.value))
 
     def _range(self, lookup_model, lookup_field):
-        # TODO could be more between like
-        return self.value[0] < lookup_field < self.value[1]
+        return any(value is not None and self.value[0] < value < self.value[1]
+                   for value in lookup_field)
 
     def _year(self, lookup_model, lookup_field):
-        return lookup_field.year == self.value
+        return any(value is not None and value.year == self.value
+                   for value in lookup_field)
 
     def _month(self, lookup_model, lookup_field):
-        return lookup_field.month == self.value
+        return any(value is not None and value.month == self.value
+                   for value in lookup_field)
 
     def _day(self, lookup_model, lookup_field):
-        return lookup_field.day == self.value
+        return any(value is not None and value.day == self.value
+                   for value in lookup_field)
 
     def _week_day(self, lookup_model, lookup_field):
         # Counterintuitively, the __week_day lookup does not use the .weekday()
@@ -171,13 +196,16 @@ class LookupExpression(object):
         # See docs at https://docs.djangoproject.com/en/dev/ref/models/querysets/#week-day
         # and https://code.djangoproject.com/ticket/10345 for additional
         # discussion.
-        return (lookup_field.isoweekday() % 7) + 1 == self.value
+        return any(
+            value is not None
+            and (value.isoweekday() % 7) + 1 == self.value
+            for value in lookup_field)
 
     def _isnull(self, lookup_model, lookup_field):
         if self.value:
-            return lookup_field is None
+            return None in lookup_field
         else:
-            return lookup_field is not None
+            return None not in lookup_field
 
     def _search(self, lookup_model, lookup_field):
         return self._contains(lookup_model, lookup_field)
@@ -187,7 +215,13 @@ class LookupExpression(object):
         Note that for queries - this can be DB specific syntax
         here we just use Python
         """
-        return bool(re.search(self.value, lookup_field))
+        regex = re.compile(self.value)
+        return any(
+            value is not None and regex.search(value)
+            for value in lookup_field)
 
     def _iregex(self, lookup_model, lookup_field):
-        return bool(re.search(self.value, lookup_field, flags=re.I))
+        regex = re.compile(self.value, flags=re.I)
+        return any(
+            value is not None and regex.search(value)
+            for value in lookup_field)
