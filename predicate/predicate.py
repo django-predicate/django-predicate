@@ -1,6 +1,6 @@
 import re
-from itertools import chain
 
+import django
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models.query_utils import Q
 
@@ -76,8 +76,12 @@ class LookupExpression(object):
             if obj is None:
                 values.append(None)
                 continue
-            field = obj._meta.get_field(lookup_name)
-            direct = not field.auto_created or field.concrete
+            if django.VERSION < (1, 8):
+                field, model, direct,  m2m = obj._meta.get_field_by_name(
+                    lookup_name)
+            else:
+                field = obj._meta.get_field(lookup_name)
+                direct = not field.auto_created or field.concrete
             accessor = lookup_name if direct else field.get_accessor_name()
             try:
                 result = getattr(obj, accessor)
