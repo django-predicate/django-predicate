@@ -2,6 +2,8 @@ import re
 
 import django
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Manager
+from django.db.models import QuerySet
 from django.db.models.query_utils import Q
 
 LOOKUP_SEP = '__'
@@ -88,7 +90,7 @@ class LookupExpression(object):
             except ObjectDoesNotExist:
                 values.append(None)
             else:
-                if hasattr(result, 'all'):
+                if isinstance(result, (QuerySet, Manager)):
                     values.extend(result.all())
                 else:
                     values.append(result)
