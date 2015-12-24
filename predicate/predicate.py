@@ -114,85 +114,85 @@ class LookupExpression(object):
         lookup_model, lookup_field, lookup_type = self.get_field(instance)
         comparison_func = getattr(self, '_' + lookup_type, None)
         if comparison_func:
-            return comparison_func(lookup_model, lookup_field)
+            return comparison_func(lookup_field)
         raise ValueError("invalid lookup: {}".format(self.lookup))
 
     # Comparison functions
 
-    def _exact(self, lookup_model, lookup_field):
+    def _exact(self, lookup_field):
         return self.value in lookup_field
 
-    def _iexact(self, lookup_model, lookup_field):
+    def _iexact(self, lookup_field):
         expected = self.value.lower()
         return any(value is not None and expected == value.lower()
                    for value in lookup_field)
 
-    def _contains(self, lookup_model, lookup_field):
+    def _contains(self, lookup_field):
         return any(value is not None and self.value in value
                    for value in lookup_field)
 
-    def _icontains(self, lookup_model, lookup_field):
+    def _icontains(self, lookup_field):
         expected = self.value.lower()
         return any(value is not None and expected in value
                    for value in lookup_field)
 
-    def _gt(self, lookup_model, lookup_field):
+    def _gt(self, lookup_field):
         return any(value is not None and value > self.value
                    for value in lookup_field)
 
-    def _gte(self, lookup_model, lookup_field):
+    def _gte(self, lookup_field):
         return any(value is not None and value >= self.value
                    for value in lookup_field)
 
-    def _lt(self, lookup_model, lookup_field):
+    def _lt(self, lookup_field):
         return any(value is not None and value < self.value
                    for value in lookup_field)
 
-    def _lte(self, lookup_model, lookup_field):
+    def _lte(self, lookup_field):
         return any(value is not None and value <= self.value
                    for value in lookup_field)
 
-    def _startswith(self, lookup_model, lookup_field):
+    def _startswith(self, lookup_field):
         return any(value is not None and value.startswith(self.value)
                    for value in lookup_field)
 
-    def _istartswith(self, lookup_model, lookup_field):
+    def _istartswith(self, lookup_field):
         expected_value = self.value.lower()
         return any(
             value is not None and value.lower().startswith(expected_value)
             for value in lookup_field)
 
-    def _endswith(self, lookup_model, lookup_field):
+    def _endswith(self, lookup_field):
         return any(
             value is not None and value.lower().endswith(self.value)
             for value in lookup_field)
 
-    def _iendswith(self, lookup_model, lookup_field):
+    def _iendswith(self, lookup_field):
         expected_value = self.value.lower()
         return any(
             value is not None and value.lower().endswith(expected_value)
             for value in lookup_field)
 
-    def _in(self, lookup_model, lookup_field):
+    def _in(self, lookup_field):
         return bool(set(lookup_field) & set(self.value))
 
-    def _range(self, lookup_model, lookup_field):
+    def _range(self, lookup_field):
         return any(value is not None and self.value[0] < value < self.value[1]
                    for value in lookup_field)
 
-    def _year(self, lookup_model, lookup_field):
+    def _year(self, lookup_field):
         return any(value is not None and value.year == self.value
                    for value in lookup_field)
 
-    def _month(self, lookup_model, lookup_field):
+    def _month(self, lookup_field):
         return any(value is not None and value.month == self.value
                    for value in lookup_field)
 
-    def _day(self, lookup_model, lookup_field):
+    def _day(self, lookup_field):
         return any(value is not None and value.day == self.value
                    for value in lookup_field)
 
-    def _week_day(self, lookup_model, lookup_field):
+    def _week_day(self, lookup_field):
         # Counterintuitively, the __week_day lookup does not use the .weekday()
         # python method, but instead some custom django weekday thing
         # (Sunday=1 to Saturday=7). This is equivalent to:
@@ -207,16 +207,16 @@ class LookupExpression(object):
             and (value.isoweekday() % 7) + 1 == self.value
             for value in lookup_field)
 
-    def _isnull(self, lookup_model, lookup_field):
+    def _isnull(self, lookup_field):
         if self.value:
             return None in lookup_field
         else:
             return None not in lookup_field
 
-    def _search(self, lookup_model, lookup_field):
-        return self._contains(lookup_model, lookup_field)
+    def _search(self, lookup_field):
+        return self._contains(lookup_field)
 
-    def _regex(self, lookup_model, lookup_field):
+    def _regex(self, lookup_field):
         """
         Note that for queries - this can be DB specific syntax
         here we just use Python
@@ -226,7 +226,7 @@ class LookupExpression(object):
             value is not None and regex.search(value)
             for value in lookup_field)
 
-    def _iregex(self, lookup_model, lookup_field):
+    def _iregex(self, lookup_field):
         regex = re.compile(self.value, flags=re.I)
         return any(
             value is not None and regex.search(value)
