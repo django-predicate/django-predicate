@@ -70,7 +70,6 @@ class LookupExpression(object):
 
     def __init__(self, expr):
         self.lookup, self.value = expr
-        self.field = None
 
     def get_field_from_objs(self, lookup_name, objs):
         values = []
