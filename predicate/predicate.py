@@ -52,15 +52,6 @@ class P(Q):
         else:
             return ret
 
-    def to_identifier(self):
-        s = ""
-        for c in sorted(self.children):
-            if isinstance(c, type(self)):
-                s += c.to_identifier()
-            else:
-                s += ''.join([str(val) for val in c])
-        return s.replace('_', '')
-
 
 class LookupExpression(object):
     """
