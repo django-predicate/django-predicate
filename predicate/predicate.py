@@ -23,7 +23,7 @@ def eval_wrapper(children):
         if isinstance(child, P):
             yield child
         elif isinstance(child, tuple) and len(child) == 2:
-            yield LookupExpression(child)
+            yield LookupEvaluator(child)
 
 
 class P(Q):
@@ -53,7 +53,7 @@ class P(Q):
             return ret
 
 
-class LookupExpression(object):
+class LookupEvaluator(object):
     """
     A thin wrapper around a filter expression tuple of (lookup-type, value) to
     provide an eval method

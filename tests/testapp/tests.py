@@ -9,7 +9,7 @@ from django.test import TestCase
 from nose.tools import assert_equal
 
 from predicate import P
-from predicate.predicate import LookupExpression
+from predicate.predicate import LookupEvaluator
 from models import CustomRelatedNameOneToOneModel
 from models import ForeignKeyModel
 from models import M2MModel
@@ -185,7 +185,7 @@ class TestLookupExpression(TestCase):
         TestObj.objects.bulk_create([
             TestObj(int_value=i, parent=parent) for i in range(3)
         ])
-        expr = LookupExpression(('children__int_value', 2))
+        expr = LookupEvaluator(('children__int_value', 2))
         lookup_model, lookup_field, lookup_type = expr.get_field(parent)
         self.assertEqual(set(lookup_field), set(range(3)))
 
