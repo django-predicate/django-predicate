@@ -20,13 +20,16 @@ def eval_wrapper(children):
     """
     generator to yield child nodes, or to wrap filter expressions
     """
+    lookups = LookupNode()
     for child in children:
         if isinstance(child, P):
             yield child
-        elif isinstance(child, tuple) and len(child) == 2:
-            yield LookupEvaluator(child)
+        elif isinstance(child, tuple):
+            lookup, value = child
+            lookups[lookup] = value
         else:
             raise ValueError(child)
+    yield lookups
 
 
 class P(Q):
@@ -64,51 +67,6 @@ class LookupEvaluator(object):
 
     def __init__(self, expr):
         self.lookup, self.value = expr
-
-    def get_field_from_objs(self, lookup_name, objs):
-        values = []
-        for obj in objs:
-            if obj is None:
-                values.append(None)
-                continue
-            if django.VERSION < (1, 8):
-                field, model, direct,  m2m = obj._meta.get_field_by_name(
-                    lookup_name)
-            else:
-                field = obj._meta.get_field(lookup_name)
-                direct = not field.auto_created or field.concrete
-            accessor = lookup_name if direct else field.get_accessor_name()
-            try:
-                result = getattr(obj, accessor)
-            except ObjectDoesNotExist:
-                values.append(None)
-            else:
-                if isinstance(result, (QuerySet, Manager)):
-                    values.extend(result.all())
-                else:
-                    values.append(result)
-        return values
-
-    def get_field(self, instance):
-        parts = self.lookup.split(LOOKUP_SEP)
-
-        lookup_type = 'exact'  # Default lookup type
-        if parts[-1] in QUERY_TERMS:
-            lookup_type = parts.pop()
-        values = [instance]
-        for part in parts:
-            values = self.get_field_from_objs(part, values)
-        return instance, values, lookup_type
-
-    def eval(self, instance):
-        """
-        return true if the instance matches the expression
-        """
-        lookup_model, lookup_field, lookup_type = self.get_field(instance)
-        comparison_func = getattr(self, '_' + lookup_type, None)
-        if comparison_func:
-            return comparison_func(lookup_field)
-        raise ValueError("invalid lookup: {}".format(self.lookup))
 
     # Comparison functions
 
@@ -240,6 +198,15 @@ class LookupComponent(str):
         if not lookup:  # Handle '' standing in for leaf components in lookups.
             return []
         return map(cls, lookup.split(LOOKUP_SEP))
+
+    @property
+    def is_query(self):
+        """
+        Returns true if a query lookup like __in or __gte.
+
+        TODO: Expand this to handle custom registered lookups.
+        """
+        return self in QUERY_TERMS
 
     def values_list(self, obj):
         if obj is None:

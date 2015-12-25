@@ -12,7 +12,6 @@ from predicate.predicate import GET
 from predicate.predicate import LookupComponent
 from predicate.predicate import LookupNode
 from predicate import P
-from predicate.predicate import LookupEvaluator
 from models import CustomRelatedNameOneToOneModel
 from models import ForeignKeyModel
 from models import M2MModel
@@ -154,7 +153,6 @@ class RelationshipFollowTest(TestCase):
         self.assertNotIn(test_obj, OrmP(m2ms=m2m2))
         self.assertNotIn(test_obj, OrmP(m2ms__int_value=30))
 
-    @expectedFailure
     def test_joint_conditions(self):
         """
         Test that joint conditions must be on the same aliased instance.
@@ -180,17 +178,6 @@ class RelationshipFollowTest(TestCase):
         self.assertIn(
             test_obj,
             OrmP(m2ms__int_value=10, m2ms__char_value='foo'))
-
-
-class TestLookupExpression(TestCase):
-    def test_get_field_on_reverse_foreign_key(self):
-        parent = TestObj.objects.create(int_value=100)
-        TestObj.objects.bulk_create([
-            TestObj(int_value=i, parent=parent) for i in range(3)
-        ])
-        expr = LookupEvaluator(('children__int_value', 2))
-        lookup_model, lookup_field, lookup_type = expr.get_field(parent)
-        self.assertEqual(set(lookup_field), set(range(3)))
 
 
 class ComparisonFunctionsTest(TestCase):
