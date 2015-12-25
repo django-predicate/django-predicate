@@ -24,6 +24,8 @@ def eval_wrapper(children):
             yield child
         elif isinstance(child, tuple) and len(child) == 2:
             yield LookupEvaluator(child)
+        else:
+            raise ValueError(child)
 
 
 class P(Q):
