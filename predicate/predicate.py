@@ -1,5 +1,4 @@
 import itertools
-import re
 
 import django
 from django.core.exceptions import ObjectDoesNotExist
@@ -7,13 +6,9 @@ from django.db.models import Manager
 from django.db.models import QuerySet
 from django.db.models.constants import LOOKUP_SEP
 from django.db.models.query_utils import Q
+from django.utils.functional import cached_property
 
-
-QUERY_TERMS = set([
-    'exact', 'iexact', 'contains', 'icontains', 'gt', 'gte', 'lt', 'lte', 'in',
-    'startswith', 'istartswith', 'endswith', 'iendswith', 'range', 'year',
-    'month', 'day', 'week_day', 'isnull', 'search', 'regex', 'iregex',
-])
+from .lookup_utils import LOOKUP_TO_EVALUATOR
 
 
 def eval_wrapper(children):
@@ -59,131 +54,6 @@ class P(Q):
             return ret
 
 
-class LookupEvaluator(object):
-    """
-    A thin wrapper around a filter expression tuple of (lookup-type, value) to
-    provide an eval method
-    """
-
-    def __init__(self, expr):
-        self.lookup, self.value = expr
-
-    # Comparison functions
-
-    def _exact(self, values):
-        return self.value in values
-
-    def _iexact(self, values):
-        expected = self.value.lower()
-        return any(value is not None and expected == value.lower()
-                   for value in values)
-
-    def _contains(self, values):
-        return any(value is not None and self.value in value
-                   for value in values)
-
-    def _icontains(self, values):
-        expected = self.value.lower()
-        return any(value is not None and expected in value
-                   for value in values)
-
-    def _gt(self, values):
-        return any(value is not None and value > self.value
-                   for value in values)
-
-    def _gte(self, values):
-        return any(value is not None and value >= self.value
-                   for value in values)
-
-    def _lt(self, values):
-        return any(value is not None and value < self.value
-                   for value in values)
-
-    def _lte(self, values):
-        return any(value is not None and value <= self.value
-                   for value in values)
-
-    def _startswith(self, values):
-        return any(value is not None and value.startswith(self.value)
-                   for value in values)
-
-    def _istartswith(self, values):
-        expected_value = self.value.lower()
-        return any(
-            value is not None and value.lower().startswith(expected_value)
-            for value in values)
-
-    def _endswith(self, values):
-        return any(
-            value is not None and value.lower().endswith(self.value)
-            for value in values)
-
-    def _iendswith(self, values):
-        expected_value = self.value.lower()
-        return any(
-            value is not None and value.lower().endswith(expected_value)
-            for value in values)
-
-    def _in(self, values):
-        return bool(set(values) & set(self.value))
-
-    def _range(self, values):
-        return any(value is not None and self.value[0] < value < self.value[1]
-                   for value in values)
-
-    def _year(self, values):
-        return any(value is not None and value.year == self.value
-                   for value in values)
-
-    def _month(self, values):
-        return any(value is not None and value.month == self.value
-                   for value in values)
-
-    def _day(self, values):
-        return any(value is not None and value.day == self.value
-                   for value in values)
-
-    def _week_day(self, values):
-        # Counterintuitively, the __week_day lookup does not use the .weekday()
-        # python method, but instead some custom django weekday thing
-        # (Sunday=1 to Saturday=7). This is equivalent to:
-        # (isoweekday mod 7) + 1.
-        # https://docs.python.org/2/library/datetime.html#datetime.date.isoweekday
-        #
-        # See docs at https://docs.djangoproject.com/en/dev/ref/models/querysets/#week-day
-        # and https://code.djangoproject.com/ticket/10345 for additional
-        # discussion.
-        return any(
-            value is not None
-            and (value.isoweekday() % 7) + 1 == self.value
-            for value in values)
-
-    def _isnull(self, values):
-        if self.value:
-            return None in values
-        else:
-            return None not in values
-
-    def _search(self, values):
-        return self._contains(values)
-
-    def _regex(self, values):
-        """
-        Note that for queries - this can be DB specific syntax
-        here we just use Python
-        """
-        regex = re.compile(self.value)
-        return any(
-            value is not None and regex.search(value)
-            for value in values)
-
-    def _iregex(self, values):
-        regex = re.compile(self.value, flags=re.I)
-        return any(
-            value is not None and regex.search(value)
-            for value in values)
-
-
 class LookupComponent(str):
     def __repr__(self):
         return '{self.__class__.__name__}({repr})'.format(
@@ -206,7 +76,12 @@ class LookupComponent(str):
 
         TODO: Expand this to handle custom registered lookups.
         """
-        return self in QUERY_TERMS
+        return self in LOOKUP_TO_EVALUATOR
+
+    def build_evaluator(self, rhs):
+        # No query lookup was specified, so assume __exact
+        query = 'exact' if self == LookupComponent.EMPTY else self
+        return LOOKUP_TO_EVALUATOR[query](rhs)
 
     def values_list(self, obj):
         if obj is None:
@@ -274,7 +149,8 @@ class LookupNode(object):
         lookup_stack = [] if lookup_stack is None else lookup_stack
         for component, node in self.children.viewitems():
             if component == LookupComponent.EMPTY:
-                yield (LOOKUP_SEP.join(lookup_stack), self.value)
+                yield (LookupComponent(LOOKUP_SEP.join(lookup_stack)),
+                       self.value)
             else:
                 lookup_stack.append(component)
                 for item in node.iteritems(lookup_stack=lookup_stack):
@@ -287,6 +163,10 @@ class LookupNode(object):
     def __repr__(self):
         return 'LookupNode(lookups=%r)' % self.to_dict()
 
+    @cached_property
+    def evaluators(self):
+        return [query.build_evaluator(rhs) for query, rhs in self.iteritems()]
+
     def eval(self, instance):
         query_values_lookups = self.convert_to_query_values_node()
         values = query_values_lookups.values(instance)
@@ -294,17 +174,8 @@ class LookupNode(object):
             node_matches = True
             for lookup, value in node.iteritems():
                 queries = self[lookup]
-                for query, query_value in queries.iteritems():
-                    if query == LookupComponent.EMPTY:
-                        # No query lookup was specified, so assume __exact
-                        query = 'exact'
-                    evaluator = LookupEvaluator((query, query_value))
-                    comparison_func = getattr(evaluator, '_' + query)
-                    if not comparison_func([value]):
-                        node_matches = False
-                        break
-                if not node_matches:
-                    break
+                node_matches &= all(
+                    evaluator(value) for evaluator in queries.evaluators)
             if node_matches:
                 return True
         return False
