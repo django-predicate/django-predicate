@@ -231,15 +231,54 @@ class ComparisonFunctionsTest(TestCase):
         self.assertIn(
             self.testobj,
             OrmP(datetime_value__gt=today - timedelta(days=1)))
+        self.assertIn(
+            self.testobj,
+            OrmP(datetime_value__gte=today - timedelta(days=1)))
+        self.assertNotIn(
+            self.testobj,
+            OrmP(datetime_value__lte=today - timedelta(days=1)))
+        self.assertNotIn(
+            self.testobj,
+            OrmP(datetime_value__lt=today - timedelta(days=1)))
+
         self.assertNotIn(
             self.testobj,
             OrmP(datetime_value__gt=today + timedelta(days=1)))
+        self.assertNotIn(
+            self.testobj,
+            OrmP(datetime_value__gte=today + timedelta(days=1)))
+        self.assertIn(
+            self.testobj,
+            OrmP(datetime_value__lte=today + timedelta(days=1)))
+        self.assertIn(
+            self.testobj,
+            OrmP(datetime_value__lt=today + timedelta(days=1)))
+
         self.assertIn(
             self.testobj,
             OrmP(date_value__gt=now - timedelta(days=1)))
+        self.assertIn(
+            self.testobj,
+            OrmP(date_value__gte=now - timedelta(days=1)))
+        self.assertNotIn(
+            self.testobj,
+            OrmP(date_value__lte=now - timedelta(days=1)))
+        self.assertNotIn(
+            self.testobj,
+            OrmP(date_value__lt=now - timedelta(days=1)))
+
         self.assertNotIn(
             self.testobj,
             OrmP(date_value__gt=now + timedelta(days=1)))
+        self.assertNotIn(
+            self.testobj,
+            OrmP(date_value__gte=now + timedelta(days=1)))
+        self.assertIn(
+            self.testobj,
+            OrmP(date_value__lte=now + timedelta(days=1)))
+        self.assertIn(
+            self.testobj,
+            OrmP(date_value__lt=now + timedelta(days=1)))
 
     def test_gte(self):
         self.assertTrue(OrmP(int_value__gte=20).eval(self.testobj))
