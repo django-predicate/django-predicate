@@ -1,5 +1,7 @@
-import re
+import datetime
 import operator
+import re
+
 
 
 class LookupQueryEvaluator(object):
@@ -9,7 +11,26 @@ class LookupQueryEvaluator(object):
         self.rhs = rhs
 
     def __call__(self, lhs):
-        return all(evaluator(lhs, self.rhs) for evaluator in self.evaluators)
+        rhs = self.cast_rhs(lhs)
+        lhs = self.cast_lhs(lhs)
+        return all(evaluator(lhs, rhs) for evaluator in self.evaluators)
+
+    def cast_lhs(self, lhs):
+        """
+        Cast lhs as needed to compare with self.rhs.
+
+        Default to identity.
+        """
+        return lhs
+
+    def cast_rhs(self, lhs):
+        """
+        Cast self.rhs as needed to compare with lhs.
+
+        Default to identity.
+        """
+        return self.rhs
+
 
 
 def NOT_NULL(lhs, rhs):
@@ -78,19 +99,32 @@ class In(LookupQueryEvaluator):
         self.rhs = set(rhs)
 
 
-class GT(LookupQueryEvaluator):
+class DateCastMixin(object):
+    def cast_lhs(self, lhs):
+        if isinstance(lhs, datetime.datetime) and isinstance(self.rhs, datetime.date):
+            lhs = lhs.date()
+        return lhs
+
+    def cast_rhs(self, lhs):
+        rhs = self.rhs
+        if isinstance(rhs, datetime.datetime) and isinstance(lhs, datetime.date):
+            rhs = rhs.date()
+        return rhs
+
+
+class GT(DateCastMixin, LookupQueryEvaluator):
     evaluators = (NOT_NULL, operator.gt)
 
 
-class GTE(LookupQueryEvaluator):
+class GTE(DateCastMixin, LookupQueryEvaluator):
     evaluators = (NOT_NULL, operator.ge)
 
 
-class LT(LookupQueryEvaluator):
+class LT(DateCastMixin, LookupQueryEvaluator):
     evaluators = (NOT_NULL, operator.lt)
 
 
-class LTE(LookupQueryEvaluator):
+class LTE(DateCastMixin, LookupQueryEvaluator):
     evaluators = (NOT_NULL, operator.le)
 
 

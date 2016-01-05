@@ -220,7 +220,6 @@ class ComparisonFunctionsTest(TestCase):
         self.assertFalse(OrmP(int_value__gt=80.0).eval(self.testobj))
         self.assertFalse(OrmP(int_value__gt=50).eval(self.testobj))
 
-    @expectedFailure  # FIXME: fix datetime casting bugs.
     def test_datetime_cast(self):
         """
         Tests that the Django ORM casting rules are obeyed in filtering by
