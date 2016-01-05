@@ -89,7 +89,10 @@ class LookupComponent(str):
         elif self == LookupComponent.EMPTY:
             return [obj]
         values = []
-        if django.VERSION < (1, 8):
+        if self == 'pk':
+            field = obj._meta.pk
+            direct = True
+        elif django.VERSION < (1, 8):
             field, model, direct,  m2m = obj._meta.get_field_by_name(self)
         else:
             field = obj._meta.get_field(self)

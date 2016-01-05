@@ -2,7 +2,6 @@ from datetime import date
 from datetime import datetime
 from datetime import timedelta
 from random import choice, random
-from unittest import expectedFailure
 
 from django.test import skipIfDBFeature
 from django.test import TestCase
@@ -220,7 +219,6 @@ class ComparisonFunctionsTest(TestCase):
         self.assertFalse(OrmP(int_value__gt=80.0).eval(self.testobj))
         self.assertFalse(OrmP(int_value__gt=50).eval(self.testobj))
 
-    @expectedFailure  # FIXME: fix datetime casting bugs.
     def test_datetime_cast(self):
         """
         Tests that the Django ORM casting rules are obeyed in filtering by
@@ -231,15 +229,54 @@ class ComparisonFunctionsTest(TestCase):
         self.assertIn(
             self.testobj,
             OrmP(datetime_value__gt=today - timedelta(days=1)))
+        self.assertIn(
+            self.testobj,
+            OrmP(datetime_value__gte=today - timedelta(days=1)))
+        self.assertNotIn(
+            self.testobj,
+            OrmP(datetime_value__lte=today - timedelta(days=1)))
+        self.assertNotIn(
+            self.testobj,
+            OrmP(datetime_value__lt=today - timedelta(days=1)))
+
         self.assertNotIn(
             self.testobj,
             OrmP(datetime_value__gt=today + timedelta(days=1)))
+        self.assertNotIn(
+            self.testobj,
+            OrmP(datetime_value__gte=today + timedelta(days=1)))
+        self.assertIn(
+            self.testobj,
+            OrmP(datetime_value__lte=today + timedelta(days=1)))
+        self.assertIn(
+            self.testobj,
+            OrmP(datetime_value__lt=today + timedelta(days=1)))
+
         self.assertIn(
             self.testobj,
             OrmP(date_value__gt=now - timedelta(days=1)))
+        self.assertIn(
+            self.testobj,
+            OrmP(date_value__gte=now - timedelta(days=1)))
+        self.assertNotIn(
+            self.testobj,
+            OrmP(date_value__lte=now - timedelta(days=1)))
+        self.assertNotIn(
+            self.testobj,
+            OrmP(date_value__lt=now - timedelta(days=1)))
+
         self.assertNotIn(
             self.testobj,
             OrmP(date_value__gt=now + timedelta(days=1)))
+        self.assertNotIn(
+            self.testobj,
+            OrmP(date_value__gte=now + timedelta(days=1)))
+        self.assertIn(
+            self.testobj,
+            OrmP(date_value__lte=now + timedelta(days=1)))
+        self.assertIn(
+            self.testobj,
+            OrmP(date_value__lt=now + timedelta(days=1)))
 
     def test_gte(self):
         self.assertTrue(OrmP(int_value__gte=20).eval(self.testobj))
@@ -305,10 +342,22 @@ class ComparisonFunctionsTest(TestCase):
         self.assertTrue(self.testobj in p)
         self.assertFalse(self.testobj in p2)
 
-    # FIXME: FieldDoesNotExist: TestObj has no field named 'pk'
-    @expectedFailure
     def test_pk_casting(self):
         pk_values_list = TestObj.objects.values_list('pk')
+        self.assertIn(
+            self.testobj, TestObj.objects.filter(pk__in=pk_values_list))
+        self.assertIn(
+            self.testobj, OrmP(pk__in=pk_values_list))
+
+    def test_pk_casting_queryset(self):
+        qs = TestObj.objects.all()
+        self.assertIn(
+            self.testobj, TestObj.objects.filter(pk__in=qs))
+        self.assertIn(
+            self.testobj, OrmP(pk__in=qs))
+
+    def test_pk_casting_flat(self):
+        pk_values_list = TestObj.objects.values_list('pk', flat=True)
         self.assertIn(
             self.testobj, TestObj.objects.filter(pk__in=pk_values_list))
         self.assertIn(

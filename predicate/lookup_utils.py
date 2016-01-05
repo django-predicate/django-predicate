@@ -1,5 +1,8 @@
-import re
+import datetime
 import operator
+import re
+
+from django.db import models
 
 
 class LookupQueryEvaluator(object):
@@ -9,7 +12,25 @@ class LookupQueryEvaluator(object):
         self.rhs = rhs
 
     def __call__(self, lhs):
-        return all(evaluator(lhs, self.rhs) for evaluator in self.evaluators)
+        rhs = self.cast_rhs(lhs)
+        lhs = self.cast_lhs(lhs)
+        return all(evaluator(lhs, rhs) for evaluator in self.evaluators)
+
+    def cast_lhs(self, lhs):
+        """
+        Cast lhs as needed to compare with self.rhs.
+
+        Default to identity.
+        """
+        return lhs
+
+    def cast_rhs(self, lhs):
+        """
+        Cast self.rhs as needed to compare with lhs.
+
+        Default to identity.
+        """
+        return self.rhs
 
 
 def NOT_NULL(lhs, rhs):
@@ -34,9 +55,6 @@ class Regex(LookupQueryEvaluator):
         if self.escape:
             rhs = re.escape(rhs)
         self.rhs = re.compile((self.template % rhs), flags=self.flags)
-
-    def compile_regex(self, rhs):
-        return re.compile(rhs)
 
 
 class StartsWith(LookupQueryEvaluator):
@@ -75,22 +93,46 @@ class In(LookupQueryEvaluator):
     evaluators = ((lambda lhs, rhs: lhs in rhs), )
 
     def __init__(self, rhs):
-        self.rhs = set(rhs)
+        self.rhs = {self._cast(value) for value in rhs}
+
+    def _cast(self, value):
+        if isinstance(value, tuple):
+            # Handles __in=MyModel.objects.values_list('pk')
+            value, = value
+        elif isinstance(value, models.Model):
+            value = value.pk
+        return value
+
+    def cast_lhs(self, lhs):
+        return self._cast(lhs)
 
 
-class GT(LookupQueryEvaluator):
+class DateCastMixin(object):
+    def cast_lhs(self, lhs):
+        if isinstance(lhs, datetime.datetime) and isinstance(self.rhs, datetime.date):
+            lhs = lhs.date()
+        return lhs
+
+    def cast_rhs(self, lhs):
+        rhs = self.rhs
+        if isinstance(rhs, datetime.datetime) and isinstance(lhs, datetime.date):
+            rhs = rhs.date()
+        return rhs
+
+
+class GT(DateCastMixin, LookupQueryEvaluator):
     evaluators = (NOT_NULL, operator.gt)
 
 
-class GTE(LookupQueryEvaluator):
+class GTE(DateCastMixin, LookupQueryEvaluator):
     evaluators = (NOT_NULL, operator.ge)
 
 
-class LT(LookupQueryEvaluator):
+class LT(DateCastMixin, LookupQueryEvaluator):
     evaluators = (NOT_NULL, operator.lt)
 
 
-class LTE(LookupQueryEvaluator):
+class LTE(DateCastMixin, LookupQueryEvaluator):
     evaluators = (NOT_NULL, operator.le)
 
 
