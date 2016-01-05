@@ -2,7 +2,6 @@ from datetime import date
 from datetime import datetime
 from datetime import timedelta
 from random import choice, random
-from unittest import expectedFailure
 
 from django.test import skipIfDBFeature
 from django.test import TestCase
@@ -343,8 +342,6 @@ class ComparisonFunctionsTest(TestCase):
         self.assertTrue(self.testobj in p)
         self.assertFalse(self.testobj in p2)
 
-    # FIXME: FieldDoesNotExist: TestObj has no field named 'pk'
-    @expectedFailure
     def test_pk_casting(self):
         pk_values_list = TestObj.objects.values_list('pk')
         self.assertIn(

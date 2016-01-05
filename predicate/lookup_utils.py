@@ -2,6 +2,7 @@ import datetime
 import operator
 import re
 
+from django.db import models
 
 
 class LookupQueryEvaluator(object):
@@ -30,7 +31,6 @@ class LookupQueryEvaluator(object):
         Default to identity.
         """
         return self.rhs
-
 
 
 def NOT_NULL(lhs, rhs):
@@ -96,7 +96,18 @@ class In(LookupQueryEvaluator):
     evaluators = ((lambda lhs, rhs: lhs in rhs), )
 
     def __init__(self, rhs):
-        self.rhs = set(rhs)
+        self.rhs = {self._cast(value) for value in rhs}
+
+    def _cast(self, value):
+        if isinstance(value, tuple):
+            # Handles __in=MyModel.objects.values_list('pk')
+            value, = value
+        elif isinstance(value, models.Model):
+            value = value.pk
+        return value
+
+    def cast_lhs(self, lhs):
+        return self._cast(lhs)
 
 
 class DateCastMixin(object):
