@@ -352,6 +352,20 @@ class ComparisonFunctionsTest(TestCase):
         self.assertIn(
             self.testobj, OrmP(pk__in=pk_values_list))
 
+    def test_pk_casting_queryset(self):
+        qs = TestObj.objects.all()
+        self.assertIn(
+            self.testobj, TestObj.objects.filter(pk__in=qs))
+        self.assertIn(
+            self.testobj, OrmP(pk__in=qs))
+
+    def test_pk_casting_flat(self):
+        pk_values_list = TestObj.objects.values_list('pk', flat=True)
+        self.assertIn(
+            self.testobj, TestObj.objects.filter(pk__in=pk_values_list))
+        self.assertIn(
+            self.testobj, OrmP(pk__in=pk_values_list))
+
 
 class TestBooleanOperations(TestCase):
 
