@@ -56,9 +56,6 @@ class Regex(LookupQueryEvaluator):
             rhs = re.escape(rhs)
         self.rhs = re.compile((self.template % rhs), flags=self.flags)
 
-    def compile_regex(self, rhs):
-        return re.compile(rhs)
-
 
 class StartsWith(LookupQueryEvaluator):
     evaluators = (NOT_NULL, (lambda lhs, rhs: lhs.startswith(rhs)))
