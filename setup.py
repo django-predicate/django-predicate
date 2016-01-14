@@ -30,7 +30,6 @@ setup(
     url='http://github.com/ptone/django-predicate',
     packages=[
         'predicate',
-        'tests',
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
