@@ -3,4 +3,3 @@ include AUTHORS
 include LICENSE
 recursive-include predicate
 prune tests
-
