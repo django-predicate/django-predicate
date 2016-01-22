@@ -3,13 +3,16 @@ from datetime import datetime
 from datetime import timedelta
 from random import choice, random
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.test import skipIfDBFeature
 from django.test import TestCase
 from nose.tools import assert_equal
 
 from predicate.predicate import GET
+from predicate.predicate import get_values_list
 from predicate.predicate import LookupComponent
 from predicate.predicate import LookupNode
+from predicate.predicate import LookupNotFound
 from predicate import P
 from models import CustomRelatedNameOneToOneModel
 from models import ForeignKeyModel
@@ -461,3 +464,62 @@ class TestLookupNode(TestCase):
         node = self._build_lookup_node_and_assert_invariants(
             {'int_value': 50, 'int_value__lt': 20})
         self.assertEqual(node['int_value'].to_dict(), {'': 50, 'lt': 20})
+
+
+class AttrClass(object):
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+
+class TestGetValuesList(TestCase):
+    def get_values_list_and_assert_orm_invariants(self, obj, *args, **kwargs):
+        """
+        Gets the specified values list, and asserts that it matches the ORM
+        behavior up to ordering.
+        """
+        queryset = type(obj)._default_manager.filter(pk=obj.pk)
+        django_values_list = queryset.values_list(*args, **kwargs)
+        values_list = get_values_list(obj, *args, **kwargs)
+        self.assertEqual(set(values_list), set(django_values_list))
+        return values_list
+
+    def test_non_field_lookup_attribute(self):
+        obj = AttrClass(a=AttrClass(c='x', d='y'), b=[1, 2])
+        self.assertEqual(set(get_values_list(obj, 'a__c', 'b')), {('x', 1), ('x', 2)})
+        self.assertEqual(set(get_values_list(obj, 'a__c', flat=True)), {'x'})
+
+    def test_non_field_lookup_getitem(self):
+        obj = dict(a=dict(c='x', d='y'), b=[1, 2])
+        self.assertEqual(set(get_values_list(obj, 'a__c', 'b')), {('x', 1), ('x', 2)})
+        self.assertEqual(set(get_values_list(obj, 'a__c', flat=True)), {'x'})
+
+    def test_non_field_lookup_on_django_model(self):
+        values_list = get_values_list(
+            TestObj.objects.create(), 'some_property__x', flat=True)
+        self.assertEqual(values_list, ['y'])
+
+    def test_django_lookup(self):
+        test_obj = TestObj.objects.create()
+        test_obj.m2ms.create(int_value=10, char_value='foo')
+        test_obj.m2ms.create(int_value=20, char_value='bar')
+        values_list = self.get_values_list_and_assert_orm_invariants(
+            test_obj, 'm2ms__int_value', 'm2ms__char_value')
+        self.assertEqual(set(values_list), {(10, 'foo'), (20, 'bar')})
+
+    def test_exceptions(self):
+        with self.assertRaises(TypeError):
+            get_values_list(object(), 'foo', 'bar', flat=True)
+        with self.assertRaises(TypeError):
+            get_values_list(object(), 'foo', something=None)
+        with self.assertRaises(LookupNotFound):
+            get_values_list(object(), 'foo')
+        with self.assertRaises(LookupNotFound):
+            get_values_list({}, 'foo')
+
+    def test_reverse_one_to_one_relation(self):
+        test_obj = TestObj.objects.create()
+        with self.assertRaises(ObjectDoesNotExist):
+            test_obj.onetoonemodel
+        values_list = self.get_values_list_and_assert_orm_invariants(
+            test_obj, 'onetoonemodel__pk', flat=True)
+        self.assertEqual(values_list, [None])

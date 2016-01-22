@@ -19,6 +19,10 @@ class TestObj(Base):
     m2ms = models.ManyToManyField(
         'testapp.M2MModel', related_name='test_objs')
 
+    @property
+    def some_property(self):
+        return {'x': 'y'}
+
 
 class M2MModel(Base):
     pass

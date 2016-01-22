@@ -1,7 +1,12 @@
 import itertools
 
 import django
+try:
+    from django.core.exceptions import FieldDoesNotExist
+except ImportError:  # Django <1.8
+    from django.db.models.fields import FieldDoesNotExist
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import models
 from django.db.models import Manager
 from django.db.models import QuerySet
 from django.db.models.constants import LOOKUP_SEP
@@ -54,6 +59,10 @@ class P(Q):
             return ret
 
 
+class LookupNotFound(Exception):
+    pass
+
+
 class LookupComponent(str):
     def __repr__(self):
         return '{self.__class__.__name__}({repr})'.format(
@@ -83,15 +92,14 @@ class LookupComponent(str):
         query = 'exact' if self == LookupComponent.EMPTY else self
         return LOOKUP_TO_EVALUATOR[query](rhs)
 
-    def values_list(self, obj):
-        if obj is None:
-            return [None]
-        elif self == LookupComponent.EMPTY:
-            return [obj]
-        values = []
+    def _get_django_field_lookup(self, obj):
+        """
+        Attempts to get the lookup specified by self using django's field accessor.
+
+        Raises FieldDoesNotExist if the field cannot be found.
+        """
         if self == 'pk':
-            field = obj._meta.pk
-            direct = True
+            return getattr(obj, 'pk')
         elif django.VERSION < (1, 8):
             field, model, direct,  m2m = obj._meta.get_field_by_name(self)
         else:
@@ -99,15 +107,44 @@ class LookupComponent(str):
             direct = not field.auto_created or field.concrete
         accessor = self if direct else field.get_accessor_name()
         try:
-            result = getattr(obj, accessor)
+            return getattr(obj, accessor)
         except ObjectDoesNotExist:
-            values.append(None)
+            # Occurs in evaluating reverse OneToOneField relationships.
+            return None
+
+    def _apply_lookup(self, obj):
+        """
+        Returns the result of applying this lookup, via either:
+         - The django field accessor if defined.
+         - `getattr` if the object has the appropriate attribute.
+         - `__getitem__` if the object has a matching key (in a dict).
+        """
+        if isinstance(obj, models.Model):
+            try:
+                return self._get_django_field_lookup(obj)
+            except (FieldDoesNotExist, AttributeError):
+                pass
+        if hasattr(obj, self):
+            return getattr(obj, self)
+        elif isinstance(obj, dict):
+            try:
+                return obj[self]
+            except (KeyError, IndexError):
+                pass
+        raise LookupNotFound(self, obj)
+
+    def values_list(self, obj):
+        if obj is None:
+            return [None]
+        elif self == LookupComponent.EMPTY:
+            return [obj]
+        result = self._apply_lookup(obj)
+        if isinstance(result, (QuerySet, Manager)):
+            return result.all()
+        elif isinstance(result, (list, tuple)):
+            return result
         else:
-            if isinstance(result, (QuerySet, Manager)):
-                values.extend(result.all())
-            else:
-                values.append(result)
-        return values
+            return [result]
 
 
 LookupComponent.EMPTY = LookupComponent('')
@@ -226,3 +263,28 @@ class LookupNode(object):
                 node.children[lookup] = value
             results.append(node)
         return results
+
+
+def get_values_list(obj, *lookups, **kwargs):
+    """
+    Convenience method that simulates the effect of QuerySet.values_list.
+
+    Other than ordering, this should behave identically to the following for
+    Django model instances and lookups on django fields:
+        SomeModel.objects.filter(pk=obj.pk).values_list(*lookups, **kwargs)
+    """
+    flat = kwargs.pop('flat', False)
+    if kwargs:
+        raise TypeError('Unexpected keyword arguments to values_list: %s' %
+                        (list(kwargs),))
+    if flat and len(lookups) > 1:
+        raise TypeError("'flat' is not valid when values_list is called with more than one field.")  # nopep8
+
+    lookup_node = LookupNode(lookups={lookup: GET for lookup in lookups})
+    value_dicts = lookup_node.values(obj)
+    if flat:
+        [lookup] = lookups
+        return [value_dict[lookup].value for value_dict in value_dicts]
+    else:
+        return [tuple(value_dict[lookup].value for lookup in lookups)
+                for value_dict in value_dicts]
