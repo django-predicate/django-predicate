@@ -276,7 +276,7 @@ def get_values_list(obj, *lookups, **kwargs):
     flat = kwargs.pop('flat', False)
     if kwargs:
         raise TypeError('Unexpected keyword arguments to values_list: %s' %
-                        (list(kwargs),))
+                        kwargs.keys())
     if flat and len(lookups) > 1:
         raise TypeError("'flat' is not valid when values_list is called with more than one field.")  # nopep8
 
