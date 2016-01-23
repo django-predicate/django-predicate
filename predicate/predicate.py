@@ -129,7 +129,7 @@ class LookupComponent(str):
         elif isinstance(obj, dict):
             try:
                 return obj[self]
-            except (KeyError, IndexError):
+            except KeyError:
                 pass
         raise LookupNotFound(self, obj)
 
