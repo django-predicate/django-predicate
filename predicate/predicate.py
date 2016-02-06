@@ -5,6 +5,7 @@ try:
     from django.core.exceptions import FieldDoesNotExist
 except ImportError:  # Django <1.8
     from django.db.models.fields import FieldDoesNotExist
+from django.core.exceptions import MultipleObjectsReturned
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import Manager
@@ -57,6 +58,38 @@ class P(Q):
             return not ret
         else:
             return ret
+
+    def filter(self, iterable):
+        """
+        Returns a filtered list of applying self to the elements of iterable.
+
+        This is a similar API to QuerySet.filter.
+        """
+        return filter(self.eval, iterable)
+
+    def exclude(self, iterable):
+        """
+        Returns a filtered list of applying ~self to the elements of iterable.
+
+        This is a similar API to QuerySet.exclude.
+        """
+        return filter((~self).eval, iterable)
+
+    def get(self, iterable):
+        """
+        Gets the unique element of iterable that matches self.
+
+        This follows the QuerySet.get() api, raising ObjectDoesNotExist if no
+        element matches and MultipleObjectsReturned if multiple objects match.
+        """
+        filtered = self.filter(iterable)
+        if len(filtered) == 0:
+            raise ObjectDoesNotExist('Object matching query does not exist.')
+        elif len(filtered) > 1:
+            raise MultipleObjectsReturned(
+                'get() returned more than one object -- it returned %s!' % len(filtered))
+        else:
+            return filtered[0]
 
 
 class LookupNotFound(Exception):

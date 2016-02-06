@@ -54,6 +54,23 @@ queryset filter statements:
 
     qs = MyModel.objects.filter(p)
 
+
+P objects also support ``QuerySet``-like filtering operations that can be
+applied to an arbitrary iterable: ``P.get(iterable)``, ``P.filter(iterable)``,
+and ``P.exclude(iterable)``:
+
+.. code-block:: python
+
+    model_instance = MyModel(some_field="hello there", age=21)
+    other_model_instance = MyModel(some_field="hello there", age=10)
+    p.filter([model_instance, other_model_instance]) == [model_instance]
+    >>> True
+    p.filter([model_instance, other_model_instance]) == model_instance
+    >>> True
+    p.filter([model_instance, other_model_instance]) == other_model_instance
+    >>> True
+
+
 If you have a situation where you want to use querysets and predicates based on
 the same conditions, it is far better to start with the predicate. Because of
 the way querysets assume a SQL context, it is non-trivial to reverse engineer
