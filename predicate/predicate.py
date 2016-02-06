@@ -62,8 +62,18 @@ class P(Q):
     def filter(self, iterable):
         """
         Returns a filtered list of applying self to the elements of iterable.
+
+        This is a similar API to QuerySet.filter.
         """
         return filter(self.eval, iterable)
+
+    def exclude(self, iterable):
+        """
+        Returns a filtered list of applying ~self to the elements of iterable.
+
+        This is a similar API to QuerySet.exclude.
+        """
+        return filter((~self).eval, iterable)
 
     def get(self, iterable):
         """

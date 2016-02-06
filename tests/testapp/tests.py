@@ -570,3 +570,24 @@ class TestFilteringMethods(TestCase):
             set(TestObj.objects.filter(predicate)), {self.obj1, self.obj2})
         self.assertEqual(
             set(predicate.filter(self.objects)), {self.obj1, self.obj2})
+
+    def test_exclude(self):
+        predicate = OrmP(int_value=3)
+        self.assertEqual(
+            set(TestObj.objects.exclude(predicate)),
+            {self.obj1, self.obj2})
+        self.assertEqual(
+            set(predicate.exclude(self.objects)),
+            {self.obj1, self.obj2})
+
+        predicate = OrmP(int_value=1)
+        self.assertEqual(set(TestObj.objects.exclude(predicate)), {self.obj2})
+        self.assertEqual(set(predicate.exclude(self.objects)), {self.obj2})
+
+        predicate = OrmP(int_value=2)
+        self.assertEqual(set(TestObj.objects.exclude(predicate)), {self.obj1})
+        self.assertEqual(set(predicate.exclude(self.objects)), {self.obj1})
+
+        predicate = OrmP(int_value__in=[1, 2])
+        self.assertEqual(set(TestObj.objects.exclude(predicate)), set())
+        self.assertEqual(set(predicate.exclude(self.objects)), set())
