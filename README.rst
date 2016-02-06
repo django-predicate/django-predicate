@@ -65,9 +65,9 @@ and ``P.exclude(iterable)``:
     other_model_instance = MyModel(some_field="hello there", age=10)
     p.filter([model_instance, other_model_instance]) == [model_instance]
     >>> True
-    p.filter([model_instance, other_model_instance]) == model_instance
+    p.get([model_instance, other_model_instance]) == model_instance
     >>> True
-    p.filter([model_instance, other_model_instance]) == other_model_instance
+    p.exclude([model_instance, other_model_instance]) == [other_model_instance]
     >>> True
 
 
