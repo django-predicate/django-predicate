@@ -3,6 +3,7 @@ from datetime import datetime
 from datetime import timedelta
 from random import choice, random
 
+from django.core.exceptions import MultipleObjectsReturned
 from django.core.exceptions import ObjectDoesNotExist
 from django.test import skipIfDBFeature
 from django.test import TestCase
@@ -523,3 +524,49 @@ class TestGetValuesList(TestCase):
         values_list = self.get_values_list_and_assert_orm_invariants(
             test_obj, 'onetoonemodel__pk', flat=True)
         self.assertEqual(values_list, [None])
+
+
+class TestFilteringMethods(TestCase):
+    def setUp(self):
+        TestObj.objects.all().delete()
+        self.obj1 = TestObj.objects.create(int_value=1)
+        self.obj2 = TestObj.objects.create(int_value=2)
+        self.objects = [self.obj1, self.obj2]
+
+    def test_get_no_objects(self):
+        predicate = OrmP(int_value=3)
+        with self.assertRaises(ObjectDoesNotExist):
+            TestObj.objects.get(predicate)
+        with self.assertRaises(ObjectDoesNotExist):
+            predicate.get(self.objects)
+
+    def test_get_return_value(self):
+        predicate = OrmP(int_value=1)
+        self.assertEqual(TestObj.objects.get(predicate), self.obj1)
+        self.assertEqual(predicate.get(self.objects), self.obj1)
+
+    def test_get_multiple_objects(self):
+        predicate = OrmP(int_value__in=[1, 2])
+        with self.assertRaises(MultipleObjectsReturned):
+            TestObj.objects.get(predicate)
+        with self.assertRaises(MultipleObjectsReturned):
+            predicate.get(self.objects)
+
+    def test_filter(self):
+        predicate = OrmP(int_value=3)
+        self.assertEqual(set(TestObj.objects.filter(predicate)), set())
+        self.assertEqual(set(predicate.filter(self.objects)), set())
+
+        predicate = OrmP(int_value=1)
+        self.assertEqual(set(TestObj.objects.filter(predicate)), {self.obj1})
+        self.assertEqual(set(predicate.filter(self.objects)), {self.obj1})
+
+        predicate = OrmP(int_value=2)
+        self.assertEqual(set(TestObj.objects.filter(predicate)), {self.obj2})
+        self.assertEqual(set(predicate.filter(self.objects)), {self.obj2})
+
+        predicate = OrmP(int_value__in=[1, 2])
+        self.assertEqual(
+            set(TestObj.objects.filter(predicate)), {self.obj1, self.obj2})
+        self.assertEqual(
+            set(predicate.filter(self.objects)), {self.obj1, self.obj2})
