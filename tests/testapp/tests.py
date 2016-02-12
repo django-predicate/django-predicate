@@ -182,6 +182,13 @@ class RelationshipFollowTest(TestCase):
             test_obj,
             OrmP(m2ms__int_value=10, m2ms__char_value='foo'))
 
+        self.assertNotIn(
+            test_obj,
+            OrmP(m2ms__int_value=10) & OrmP(m2ms__char_value='bar'))
+        self.assertIn(
+            test_obj,
+            OrmP(m2ms__int_value=10) & OrmP(m2ms__char_value='foo'))
+
 
 class ComparisonFunctionsTest(TestCase):
 
