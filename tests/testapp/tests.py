@@ -1,10 +1,14 @@
+# -*- coding: utf-8 -*-
+
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
 from random import choice, random
+from unittest import expectedFailure
 
 from django.core.exceptions import MultipleObjectsReturned
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Q
 from django.test import skipIfDBFeature
 from django.test import TestCase
 from nose.tools import assert_equal
@@ -188,6 +192,74 @@ class RelationshipFollowTest(TestCase):
         self.assertIn(
             test_obj,
             OrmP(m2ms__int_value=10) & OrmP(m2ms__char_value='foo'))
+
+    @expectedFailure
+    def test_de_morgan_law(self):
+        """
+        Tests De Morgan's law as it relates to the Django ORM.
+
+        Surprisingly, the ORM does _not_ obey De Morgan's law in some cases,
+        which this test manifests.
+        """
+        test_obj = TestObj.objects.create()
+        test_obj.m2ms.create(int_value=10, char_value='foo')
+        test_obj.m2ms.create(int_value=20, char_value='bar')
+
+        expr = OrmP(m2ms__int_value=10) & OrmP(m2ms__char_value='bar')
+        transformed_expr = ~(~OrmP(m2ms__int_value=10) | ~OrmP(m2ms__char_value='bar'))
+        # By De Morgan's law, these expressions are equivalent:
+        #     (A ∧ B) ⇔ ¬(¬A ∨ ¬B)
+        # Translated into the ORM, and different queries are constructed for
+        # expr and transformed_expr.
+        #
+        # The original expression compiles to the following SQL:
+        #
+        # SELECT "testapp_testobj"."id"
+        # FROM "testapp_testobj"
+        # INNER JOIN "testapp_testobj_m2ms"
+        #       ON ("testapp_testobj"."id" = "testapp_testobj_m2ms"."testobj_id")
+        # INNER JOIN "testapp_m2mmodel"
+        #       ON ("testapp_testobj_m2ms"."m2mmodel_id" = "testapp_m2mmodel"."id")
+        # WHERE ("testapp_m2mmodel"."int_value" = 10
+        #        AND "testapp_m2mmodel"."char_value" = bar)
+        #
+        # The transformed version compiles to the following SQL, which is _not_
+        # equivalent:
+        #
+        # SELECT "testapp_testobj"."id"
+        # FROM "testapp_testobj"
+        # WHERE NOT ((NOT ("testapp_testobj"."id" IN
+        #                    (SELECT U1."testobj_id" AS Col1
+        #                     FROM "testapp_testobj_m2ms" U1
+        #                     INNER JOIN "testapp_m2mmodel" U2
+        #                           ON (U1."m2mmodel_id" = U2."id")
+        #                     WHERE U2."int_value" = 10))
+        #             OR NOT ("testapp_testobj"."id" IN
+        #                       (SELECT U1."testobj_id" AS Col1
+        #                        FROM "testapp_testobj_m2ms" U1
+        #                        INNER JOIN "testapp_m2mmodel" U2
+        #                              ON (U1."m2mmodel_id" = U2."id")
+        #                        WHERE U2."char_value" = bar))))
+
+        # First show that these are not equivalent in the ORM, to verify that this
+        # is not a bug in the predicate.P implementation.
+        self.assertNotIn(
+            test_obj,
+            TestObj.objects.filter(Q(m2ms__int_value=10) & Q(m2ms__char_value='bar')))
+        self.assertNotIn(
+            test_obj,
+            TestObj.objects.filter(expr))
+
+        self.assertIn(
+            test_obj,
+            TestObj.objects.filter(~(~Q(m2ms__int_value=10) | ~Q(m2ms__char_value='bar'))))
+        self.assertIn(
+            test_obj,
+            TestObj.objects.filter(transformed_expr))
+
+        # Now assert that the ORM
+        self.assertNotIn(test_obj, expr)
+        self.assertIn(test_obj, transformed_expr)
 
 
 class ComparisonFunctionsTest(TestCase):
