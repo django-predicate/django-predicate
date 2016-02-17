@@ -335,6 +335,19 @@ class ComparisonFunctionsTest(TestCase):
             self.testobj,
             OrmP(datetime_value__lt=self.date_obj + timedelta(days=1)))
 
+        self.assertNotIn(
+            self.testobj,
+            OrmP(datetime_value__gt=self.datetime_obj + timedelta(seconds=1)))
+        self.assertNotIn(
+            self.testobj,
+            OrmP(datetime_value__gte=self.datetime_obj + timedelta(seconds=1)))
+        self.assertIn(
+            self.testobj,
+            OrmP(datetime_value__lte=self.datetime_obj + timedelta(seconds=1)))
+        self.assertIn(
+            self.testobj,
+            OrmP(datetime_value__lt=self.datetime_obj + timedelta(seconds=1)))
+
         self.assertIn(
             self.testobj,
             OrmP(date_value__gt=self.datetime_obj - timedelta(days=1)))
