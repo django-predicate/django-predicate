@@ -265,11 +265,13 @@ class RelationshipFollowTest(TestCase):
 class ComparisonFunctionsTest(TestCase):
 
     def setUp(self):
+        self.date_obj = date(2016, 2, 16)
+        self.datetime_obj = datetime(2016, 2, 16, 16, 24, 26, 688247)
         self.testobj = TestObj.objects.create(
             char_value="hello world",
             int_value=50,
-            date_value=date.today(),
-            datetime_value=datetime.now(),
+            date_value=self.date_obj,
+            datetime_value=self.datetime_obj,
         )
 
     def test_exact(self):
@@ -307,59 +309,57 @@ class ComparisonFunctionsTest(TestCase):
         Tests that the Django ORM casting rules are obeyed in filtering by
         dates and times.
         """
-        date_obj = date.today()
-        datetime_obj = datetime.now()
         self.assertIn(
             self.testobj,
-            OrmP(datetime_value__gt=date_obj - timedelta(days=1)))
+            OrmP(datetime_value__gt=self.date_obj - timedelta(days=1)))
         self.assertIn(
             self.testobj,
-            OrmP(datetime_value__gte=date_obj - timedelta(days=1)))
+            OrmP(datetime_value__gte=self.date_obj - timedelta(days=1)))
         self.assertNotIn(
             self.testobj,
-            OrmP(datetime_value__lte=date_obj - timedelta(days=1)))
+            OrmP(datetime_value__lte=self.date_obj - timedelta(days=1)))
         self.assertNotIn(
             self.testobj,
-            OrmP(datetime_value__lt=date_obj - timedelta(days=1)))
+            OrmP(datetime_value__lt=self.date_obj - timedelta(days=1)))
 
         self.assertNotIn(
             self.testobj,
-            OrmP(datetime_value__gt=date_obj + timedelta(days=1)))
+            OrmP(datetime_value__gt=self.date_obj + timedelta(days=1)))
         self.assertNotIn(
             self.testobj,
-            OrmP(datetime_value__gte=date_obj + timedelta(days=1)))
+            OrmP(datetime_value__gte=self.date_obj + timedelta(days=1)))
         self.assertIn(
             self.testobj,
-            OrmP(datetime_value__lte=date_obj + timedelta(days=1)))
+            OrmP(datetime_value__lte=self.date_obj + timedelta(days=1)))
         self.assertIn(
             self.testobj,
-            OrmP(datetime_value__lt=date_obj + timedelta(days=1)))
+            OrmP(datetime_value__lt=self.date_obj + timedelta(days=1)))
 
         self.assertIn(
             self.testobj,
-            OrmP(date_value__gt=datetime_obj - timedelta(days=1)))
+            OrmP(date_value__gt=self.datetime_obj - timedelta(days=1)))
         self.assertIn(
             self.testobj,
-            OrmP(date_value__gte=datetime_obj - timedelta(days=1)))
+            OrmP(date_value__gte=self.datetime_obj - timedelta(days=1)))
         self.assertNotIn(
             self.testobj,
-            OrmP(date_value__lte=datetime_obj - timedelta(days=1)))
+            OrmP(date_value__lte=self.datetime_obj - timedelta(days=1)))
         self.assertNotIn(
             self.testobj,
-            OrmP(date_value__lt=datetime_obj - timedelta(days=1)))
+            OrmP(date_value__lt=self.datetime_obj - timedelta(days=1)))
 
         self.assertNotIn(
             self.testobj,
-            OrmP(date_value__gt=datetime_obj + timedelta(days=1)))
+            OrmP(date_value__gt=self.datetime_obj + timedelta(days=1)))
         self.assertNotIn(
             self.testobj,
-            OrmP(date_value__gte=datetime_obj + timedelta(days=1)))
+            OrmP(date_value__gte=self.datetime_obj + timedelta(days=1)))
         self.assertIn(
             self.testobj,
-            OrmP(date_value__lte=datetime_obj + timedelta(days=1)))
+            OrmP(date_value__lte=self.datetime_obj + timedelta(days=1)))
         self.assertIn(
             self.testobj,
-            OrmP(date_value__lt=datetime_obj + timedelta(days=1)))
+            OrmP(date_value__lt=self.datetime_obj + timedelta(days=1)))
 
     def test_gte(self):
         self.assertTrue(OrmP(int_value__gte=20).eval(self.testobj))
