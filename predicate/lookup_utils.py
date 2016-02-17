@@ -107,15 +107,24 @@ class In(LookupQueryEvaluator):
         return self._cast(lhs)
 
 
+def is_date(obj):
+    """
+    Returns True if obj is a date object proper.
+
+    This is a bit tricky because datetime inherits from date.
+    """
+    return isinstance(obj, datetime.date) and not isinstance(obj, datetime.datetime)
+
+
 class DateCastMixin(object):
     def cast_lhs(self, lhs):
-        if isinstance(lhs, datetime.datetime) and isinstance(self.rhs, datetime.date):
+        if isinstance(lhs, datetime.datetime) and is_date(self.rhs):
             lhs = lhs.date()
         return lhs
 
     def cast_rhs(self, lhs):
         rhs = self.rhs
-        if isinstance(rhs, datetime.datetime) and isinstance(lhs, datetime.date):
+        if isinstance(rhs, datetime.datetime) and is_date(lhs):
             rhs = rhs.date()
         return rhs
 
