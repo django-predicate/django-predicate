@@ -257,7 +257,6 @@ class RelationshipFollowTest(TestCase):
             test_obj,
             TestObj.objects.filter(transformed_expr))
 
-        # Now assert that the ORM
         self.assertNotIn(test_obj, expr)
         self.assertIn(test_obj, transformed_expr)
 
@@ -506,9 +505,13 @@ class TestBooleanOperations(TestCase):
         d = {'foo': True, 'bar': True}
         self.assertIn(d, p1)
         self.assertNotIn(d, p2)
+        self.assertIn(d, (p1 | p1))
         self.assertIn(d, (p1 | p2))
         self.assertIn(d, (p1 | p2))
         self.assertIn(d, (p2 | p1))
+        self.assertNotIn(d, (p2 | p2))
+        self.assertNotIn(d, (p2 | P(foo=False)))
+        self.assertNotIn(d, (P(foo=False) | p2))
 
 
 class TestLookupNode(TestCase):
