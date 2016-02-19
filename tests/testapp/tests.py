@@ -406,19 +406,18 @@ class ComparisonFunctionsTest(TestCase):
         self.assertTrue(OrmP(char_value__iendswith='World').eval(self.testobj))
 
     def test_dates(self):
-        today = date.today()
-        self.assertTrue(OrmP(date_value__year=today.year).eval(self.testobj))
-        self.assertTrue(OrmP(date_value__month=today.month).eval(self.testobj))
-        self.assertTrue(OrmP(date_value__day=today.day).eval(self.testobj))
+        self.assertTrue(OrmP(date_value__year=self.date_obj.year).eval(self.testobj))
+        self.assertTrue(OrmP(date_value__month=self.date_obj.month).eval(self.testobj))
+        self.assertTrue(OrmP(date_value__day=self.date_obj.day).eval(self.testobj))
 
-        orm_week_day = today.isoweekday() % 7 + 1
+        orm_week_day = self.date_obj.isoweekday() % 7 + 1
 
         self.assertTrue(
             OrmP(date_value__week_day=orm_week_day).eval(self.testobj))
 
-        self.assertFalse(OrmP(date_value__year=today.year + 1).eval(self.testobj))
-        self.assertFalse(OrmP(date_value__month=today.month + 1).eval(self.testobj))
-        self.assertFalse(OrmP(date_value__day=today.day + 1).eval(self.testobj))
+        self.assertFalse(OrmP(date_value__year=self.date_obj.year + 1).eval(self.testobj))
+        self.assertFalse(OrmP(date_value__month=self.date_obj.month + 1).eval(self.testobj))
+        self.assertFalse(OrmP(date_value__day=self.date_obj.day + 1).eval(self.testobj))
         self.assertFalse(P(date_value__week_day=orm_week_day + 1).eval(self.testobj))
 
     def test_null(self):
