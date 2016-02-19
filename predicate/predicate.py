@@ -17,11 +17,11 @@ from django.utils.functional import cached_property
 from .lookup_utils import LOOKUP_TO_EVALUATOR
 
 
-def eval_wrapper(children):
+def eval_wrapper(children, connector):
     """
     generator to yield child nodes, or to wrap filter expressions
     """
-    lookups = LookupNode()
+    lookups = LookupNode(connector=connector)
     for child in children:
         if isinstance(child, P):
             yield child
@@ -53,7 +53,8 @@ class P(Q):
         """
         evaluators = {"AND": all, "OR": any}
         evaluator = evaluators[self.connector]
-        ret = evaluator(c.eval(instance) for c in eval_wrapper(self.children))
+        ret = evaluator(
+            c.eval(instance) for c in eval_wrapper(self.children, connector=self.connector))
         if self.negated:
             return not ret
         else:
@@ -186,8 +187,9 @@ GET = object()
 
 
 class LookupNode(object):
-    def __init__(self, lookups=None):
+    def __init__(self, lookups=None, connector=Q.AND):
         lookups = lookups or {}
+        self.connector = connector
         self.children = {}
         if lookups is not None:
             for lookup, value in lookups.viewitems():
@@ -244,11 +246,23 @@ class LookupNode(object):
         query_values_lookups = self.convert_to_query_values_node()
         values = query_values_lookups.values(instance)
         for node in values:
-            node_matches = True
+            if self.connector == Q.AND:
+                node_matches = True
+            elif self.connector == Q.OR:
+                node_matches = False
+            else:
+                raise NotImplementedError(self.connector)
             for lookup, value in node.iteritems():
                 queries = self[lookup]
-                node_matches &= all(
-                    evaluator(value) for evaluator in queries.evaluators)
+                if self.connector == Q.AND:
+                    node_matches &= all(
+                        evaluator(value) for evaluator in queries.evaluators)
+                elif self.connector == Q.OR:
+                    node_matches |= any(
+                        evaluator(value) for evaluator in queries.evaluators)
+                else:
+                    raise NotImplementedError(self.connector)
+
             if node_matches:
                 return True
         return False
@@ -260,7 +274,7 @@ class LookupNode(object):
 
         Used for evaluating predicates.
         """
-        lookups = LookupNode()
+        lookups = LookupNode(connector=self.connector)
         for lookup, _ in self.iteritems():
             parsed = LookupComponent.parse(lookup)
             if parsed[-1].is_query:

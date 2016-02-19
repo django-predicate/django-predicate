@@ -4,7 +4,6 @@ from datetime import date
 from datetime import datetime
 from datetime import timedelta
 from random import choice, random
-from unittest import expectedFailure
 
 from django.core.exceptions import MultipleObjectsReturned
 from django.core.exceptions import ObjectDoesNotExist
@@ -193,13 +192,14 @@ class RelationshipFollowTest(TestCase):
             test_obj,
             OrmP(m2ms__int_value=10) & OrmP(m2ms__char_value='foo'))
 
-    @expectedFailure
     def test_de_morgan_law(self):
         """
         Tests De Morgan's law as it relates to the Django ORM.
 
         Surprisingly, the ORM does _not_ obey De Morgan's law in some cases,
-        which this test manifests.
+        which this test manifests. See also:
+            https://github.com/django/django/pull/6005#issuecomment-184016682
+        since Django may start to obey De Morgan's law in Django >= 1.10.
         """
         test_obj = TestObj.objects.create()
         test_obj.m2ms.create(int_value=10, char_value='foo')
