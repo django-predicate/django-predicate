@@ -478,6 +478,7 @@ class TestBooleanOperations(TestCase):
         self.assertFalse(pand2.eval(self.testobj))
 
     def test_or(self):
+        self.testobj.m2ms.create(int_value=10)
         p1 = OrmP(char_value__contains='hello', int_value=50)
         p2 = OrmP(int_value__gt=80)
         p3 = OrmP(int_value__lt=20)
@@ -486,9 +487,29 @@ class TestBooleanOperations(TestCase):
         self.assertTrue(por1.eval(self.testobj))
         self.assertFalse(por2.eval(self.testobj))
 
+        self.assertIn(self.testobj, OrmP(char_value='hello world') | OrmP(int_value=50))
+        self.assertIn(self.testobj, OrmP(char_value='hello world') | ~OrmP(int_value=50))
+        self.assertNotIn(self.testobj, ~(OrmP(char_value='hello world') | OrmP(int_value=50)))
+
+        self.assertIn(self.testobj, OrmP(m2ms__int_value=10))
+        self.assertIn(self.testobj, OrmP(char_value='hello world') | OrmP(m2ms__int_value=10))
+        self.assertIn(self.testobj, OrmP(m2ms__int_value=10) | OrmP(char_value='hello world'))
+        self.assertIn(self.testobj, OrmP(m2ms__int_value=10) | OrmP(char_value='something else'))
+        self.assertIn(self.testobj, OrmP(char_value='something else') | OrmP(m2ms__int_value=10))
+
     def test_not(self):
         self.assertIn(self.testobj, OrmP(int_value=self.testobj.int_value))
         self.assertNotIn(self.testobj, ~OrmP(int_value=self.testobj.int_value))
+
+    def test_or2(self):
+        p1 = P(foo=True)
+        p2 = P(bar=False)
+        d = {'foo': True, 'bar': True}
+        self.assertIn(d, p1)
+        self.assertNotIn(d, p2)
+        self.assertIn(d, (p1 | p2))
+        self.assertIn(d, (p1 | p2))
+        self.assertIn(d, (p2 | p1))
 
 
 class TestLookupNode(TestCase):
