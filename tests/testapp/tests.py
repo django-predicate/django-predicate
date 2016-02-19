@@ -4,7 +4,6 @@ from datetime import date
 from datetime import datetime
 from datetime import timedelta
 from random import choice, random
-from unittest import expectedFailure
 
 from django.core.exceptions import MultipleObjectsReturned
 from django.core.exceptions import ObjectDoesNotExist
@@ -193,13 +192,14 @@ class RelationshipFollowTest(TestCase):
             test_obj,
             OrmP(m2ms__int_value=10) & OrmP(m2ms__char_value='foo'))
 
-    @expectedFailure
     def test_de_morgan_law(self):
         """
         Tests De Morgan's law as it relates to the Django ORM.
 
         Surprisingly, the ORM does _not_ obey De Morgan's law in some cases,
-        which this test manifests.
+        which this test manifests. See also:
+            https://github.com/django/django/pull/6005#issuecomment-184016682
+        since Django may start to obey De Morgan's law in Django >= 1.10.
         """
         test_obj = TestObj.objects.create()
         test_obj.m2ms.create(int_value=10, char_value='foo')
@@ -257,7 +257,6 @@ class RelationshipFollowTest(TestCase):
             test_obj,
             TestObj.objects.filter(transformed_expr))
 
-        # Now assert that the ORM
         self.assertNotIn(test_obj, expr)
         self.assertIn(test_obj, transformed_expr)
 
@@ -406,19 +405,18 @@ class ComparisonFunctionsTest(TestCase):
         self.assertTrue(OrmP(char_value__iendswith='World').eval(self.testobj))
 
     def test_dates(self):
-        today = date.today()
-        self.assertTrue(OrmP(date_value__year=today.year).eval(self.testobj))
-        self.assertTrue(OrmP(date_value__month=today.month).eval(self.testobj))
-        self.assertTrue(OrmP(date_value__day=today.day).eval(self.testobj))
+        self.assertTrue(OrmP(date_value__year=self.date_obj.year).eval(self.testobj))
+        self.assertTrue(OrmP(date_value__month=self.date_obj.month).eval(self.testobj))
+        self.assertTrue(OrmP(date_value__day=self.date_obj.day).eval(self.testobj))
 
-        orm_week_day = today.isoweekday() % 7 + 1
+        orm_week_day = self.date_obj.isoweekday() % 7 + 1
 
         self.assertTrue(
             OrmP(date_value__week_day=orm_week_day).eval(self.testobj))
 
-        self.assertFalse(OrmP(date_value__year=today.year + 1).eval(self.testobj))
-        self.assertFalse(OrmP(date_value__month=today.month + 1).eval(self.testobj))
-        self.assertFalse(OrmP(date_value__day=today.day + 1).eval(self.testobj))
+        self.assertFalse(OrmP(date_value__year=self.date_obj.year + 1).eval(self.testobj))
+        self.assertFalse(OrmP(date_value__month=self.date_obj.month + 1).eval(self.testobj))
+        self.assertFalse(OrmP(date_value__day=self.date_obj.day + 1).eval(self.testobj))
         self.assertFalse(P(date_value__week_day=orm_week_day + 1).eval(self.testobj))
 
     def test_null(self):
@@ -478,6 +476,7 @@ class TestBooleanOperations(TestCase):
         self.assertFalse(pand2.eval(self.testobj))
 
     def test_or(self):
+        self.testobj.m2ms.create(int_value=10)
         p1 = OrmP(char_value__contains='hello', int_value=50)
         p2 = OrmP(int_value__gt=80)
         p3 = OrmP(int_value__lt=20)
@@ -486,9 +485,33 @@ class TestBooleanOperations(TestCase):
         self.assertTrue(por1.eval(self.testobj))
         self.assertFalse(por2.eval(self.testobj))
 
+        self.assertIn(self.testobj, OrmP(char_value='hello world') | OrmP(int_value=50))
+        self.assertIn(self.testobj, OrmP(char_value='hello world') | ~OrmP(int_value=50))
+        self.assertNotIn(self.testobj, ~(OrmP(char_value='hello world') | OrmP(int_value=50)))
+
+        self.assertIn(self.testobj, OrmP(m2ms__int_value=10))
+        self.assertIn(self.testobj, OrmP(char_value='hello world') | OrmP(m2ms__int_value=10))
+        self.assertIn(self.testobj, OrmP(m2ms__int_value=10) | OrmP(char_value='hello world'))
+        self.assertIn(self.testobj, OrmP(m2ms__int_value=10) | OrmP(char_value='something else'))
+        self.assertIn(self.testobj, OrmP(char_value='something else') | OrmP(m2ms__int_value=10))
+
     def test_not(self):
         self.assertIn(self.testobj, OrmP(int_value=self.testobj.int_value))
         self.assertNotIn(self.testobj, ~OrmP(int_value=self.testobj.int_value))
+
+    def test_or2(self):
+        p1 = P(foo=True)
+        p2 = P(bar=False)
+        d = {'foo': True, 'bar': True}
+        self.assertIn(d, p1)
+        self.assertNotIn(d, p2)
+        self.assertIn(d, (p1 | p1))
+        self.assertIn(d, (p1 | p2))
+        self.assertIn(d, (p1 | p2))
+        self.assertIn(d, (p2 | p1))
+        self.assertNotIn(d, (p2 | p2))
+        self.assertNotIn(d, (p2 | P(foo=False)))
+        self.assertNotIn(d, (P(foo=False) | p2))
 
 
 class TestLookupNode(TestCase):
