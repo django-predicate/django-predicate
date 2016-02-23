@@ -5,14 +5,15 @@ from datetime import datetime
 from datetime import timedelta
 from random import choice, random
 
+import mock
 from django.core.exceptions import MultipleObjectsReturned
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from django.test import skipIfDBFeature
 from django.test import TestCase
-from nose.tools import assert_equal
 
 from predicate.debug import OrmP
+from predicate.debug import patch_with_orm_eval
 from predicate.predicate import GET
 from predicate.predicate import get_values_list
 from predicate.predicate import LookupComponent
@@ -680,3 +681,33 @@ class TestFilteringMethods(TestCase):
         predicate = OrmP(int_value__in=[1, 2])
         self.assertEqual(set(TestObj.objects.exclude(predicate)), set())
         self.assertEqual(set(predicate.exclude(self.objects)), set())
+
+
+class TestDebugTools(TestCase):
+    def setUp(self):
+        self.test_obj = TestObj.objects.create(int_value=10)
+
+    def test_debug_orm_validations(self):
+        self.assertIn(self.test_obj, P(int_value=10))
+        with mock.patch('predicate.debug.original_eval', return_value=False) as patched:
+            with self.assertRaises(AssertionError):
+                self.test_obj in OrmP(int_value=10)
+        self.assertTrue(patched.called)
+
+        with mock.patch('predicate.debug.original_eval', return_value=True) as patched:
+            self.assertIn(self.test_obj, OrmP(int_value=10))
+        self.assertTrue(patched.called)
+
+    def test_patch_with_orm_eval(self):
+        """
+        Tests that the debug patch_with_orm_eval() context works as expected.
+        """
+        with mock.patch('predicate.debug.original_eval', return_value=False) as patched:
+            self.assertIn(self.test_obj, P(int_value=10))
+            self.assertFalse(patched.called)
+            with patch_with_orm_eval():
+                with self.assertRaises(AssertionError):
+                    self.test_obj in P(int_value=10)
+        self.assertTrue(patched.called)
+        with patch_with_orm_eval():
+            self.assertIn(self.test_obj, P(int_value=10))

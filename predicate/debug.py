@@ -45,7 +45,8 @@ def patch_with_orm_eval():
     This will evaluate both in-memory, and via a roundtrip to the database, so
     should not be used in production code.
     """
-    from mock import patch
-    with patch.object(P, eval=orm_eval):
+    try:
+        P.eval = orm_eval
         yield
-
+    finally:
+        P.eval = original_eval
