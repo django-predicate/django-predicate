@@ -12,6 +12,7 @@ from django.test import skipIfDBFeature
 from django.test import TestCase
 from nose.tools import assert_equal
 
+from predicate.debug import OrmP
 from predicate.predicate import GET
 from predicate.predicate import get_values_list
 from predicate.predicate import LookupComponent
@@ -34,32 +35,6 @@ violet
 brown
 black
 white""".split('\n')
-
-
-class OrmP(P):
-    """
-    Implementation of P semantics that asserts the ORM and P have the same
-    semantics.
-    """
-    def eval(self, instance):
-        queryset = type(instance)._default_manager.filter(self, pk=instance.pk)
-        orm_value = queryset.exists()
-        super_value = super(OrmP, self).eval(instance)
-        assert_equal(orm_value, super_value)
-        return super_value
-
-
-def assert_universal_invariants(predicate, instance):
-    """
-    Asserts fundamental invariants that should always hold:
-    - The predicate should match the instance iff the ORM backend matches the
-      instance.
-    - Negation of the predicate should negate membership.
-    """
-    queryset = type(instance)._default_manager.filter(predicate,
-                                                      pk=instance.pk)
-    assert_equal(instance in predicate, queryset.exists())
-    assert_equal(instance in predicate, not(instance in ~predicate))
 
 
 def make_test_objects():
@@ -94,7 +69,6 @@ class RelationshipFollowTest(TestCase):
         self.assertIn(parent, TestObj.objects.filter(OrmP(children__int_value=2)))
         pred = OrmP(children__int_value=2)
         self.assertIn(parent, pred)
-        assert_universal_invariants(OrmP(children__int_value=2), parent)
 
     def test_direct_one_to_one_relationships(self):
         test_obj = TestObj.objects.create(int_value=1)
