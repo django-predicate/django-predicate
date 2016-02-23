@@ -5,13 +5,15 @@ from datetime import datetime
 from datetime import timedelta
 from random import choice, random
 
+import mock
 from django.core.exceptions import MultipleObjectsReturned
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from django.test import skipIfDBFeature
 from django.test import TestCase
-from nose.tools import assert_equal
 
+from predicate.debug import OrmP
+from predicate.debug import patch_with_orm_eval
 from predicate.predicate import GET
 from predicate.predicate import get_values_list
 from predicate.predicate import LookupComponent
@@ -34,32 +36,6 @@ violet
 brown
 black
 white""".split('\n')
-
-
-class OrmP(P):
-    """
-    Implementation of P semantics that asserts the ORM and P have the same
-    semantics.
-    """
-    def eval(self, instance):
-        queryset = type(instance)._default_manager.filter(self, pk=instance.pk)
-        orm_value = queryset.exists()
-        super_value = super(OrmP, self).eval(instance)
-        assert_equal(orm_value, super_value)
-        return super_value
-
-
-def assert_universal_invariants(predicate, instance):
-    """
-    Asserts fundamental invariants that should always hold:
-    - The predicate should match the instance iff the ORM backend matches the
-      instance.
-    - Negation of the predicate should negate membership.
-    """
-    queryset = type(instance)._default_manager.filter(predicate,
-                                                      pk=instance.pk)
-    assert_equal(instance in predicate, queryset.exists())
-    assert_equal(instance in predicate, not(instance in ~predicate))
 
 
 def make_test_objects():
@@ -94,7 +70,6 @@ class RelationshipFollowTest(TestCase):
         self.assertIn(parent, TestObj.objects.filter(OrmP(children__int_value=2)))
         pred = OrmP(children__int_value=2)
         self.assertIn(parent, pred)
-        assert_universal_invariants(OrmP(children__int_value=2), parent)
 
     def test_direct_one_to_one_relationships(self):
         test_obj = TestObj.objects.create(int_value=1)
@@ -706,3 +681,33 @@ class TestFilteringMethods(TestCase):
         predicate = OrmP(int_value__in=[1, 2])
         self.assertEqual(set(TestObj.objects.exclude(predicate)), set())
         self.assertEqual(set(predicate.exclude(self.objects)), set())
+
+
+class TestDebugTools(TestCase):
+    def setUp(self):
+        self.test_obj = TestObj.objects.create(int_value=10)
+
+    def test_debug_orm_validations(self):
+        self.assertIn(self.test_obj, P(int_value=10))
+        with mock.patch('predicate.debug.original_eval', return_value=False) as patched:
+            with self.assertRaises(AssertionError):
+                self.test_obj in OrmP(int_value=10)
+        self.assertTrue(patched.called)
+
+        with mock.patch('predicate.debug.original_eval', return_value=True) as patched:
+            self.assertIn(self.test_obj, OrmP(int_value=10))
+        self.assertTrue(patched.called)
+
+    def test_patch_with_orm_eval(self):
+        """
+        Tests that the debug patch_with_orm_eval() context works as expected.
+        """
+        with mock.patch('predicate.debug.original_eval', return_value=False) as patched:
+            self.assertIn(self.test_obj, P(int_value=10))
+            self.assertFalse(patched.called)
+            with patch_with_orm_eval():
+                with self.assertRaises(AssertionError):
+                    self.test_obj in P(int_value=10)
+        self.assertTrue(patched.called)
+        with patch_with_orm_eval():
+            self.assertIn(self.test_obj, P(int_value=10))
