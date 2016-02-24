@@ -179,6 +179,26 @@ class RelationshipFollowTest(TestCase):
             test_obj,
             ~OrmP(m2ms__int_value=10, m2ms__char_value='bar'))
 
+        self.assertIn(
+            test_obj,
+            TestObj.objects.filter(~~Q(m2ms__int_value=10, m2ms__char_value='bar'))
+        )
+        self.assertIn(
+            test_obj,
+            ~~OrmP(m2ms__int_value=10, m2ms__char_value='bar'))
+
+        self.assertNotIn(
+            test_obj,
+            TestObj.objects.filter(~~~Q(m2ms__int_value=10, m2ms__char_value='bar'))
+        )
+        self.assertNotIn(
+            test_obj,
+            ~~~OrmP(m2ms__int_value=10, m2ms__char_value='bar'))
+
+        self.assertIn(
+            test_obj,
+            ~~OrmP(m2ms__int_value=10, m2ms__char_value='foo'))
+
     def test_de_morgan_law(self):
         """
         Tests De Morgan's law as it relates to the Django ORM.
@@ -246,6 +266,23 @@ class RelationshipFollowTest(TestCase):
 
         self.assertNotIn(test_obj, expr)
         self.assertIn(test_obj, transformed_expr)
+
+        # Negate the queries, but weirdly, that doeesn't cause the answer to change.
+        self.assertNotIn(
+            test_obj,
+            TestObj.objects.filter(~(Q(m2ms__int_value=10) & Q(m2ms__char_value='bar'))))
+        self.assertNotIn(
+            test_obj,
+            TestObj.objects.filter(~expr))
+
+        # Test negation itempotency doesn't always hold, but that we match the insane behavior
+        # of the ORM in a case where it doesn't.
+        self.assertIn(
+            test_obj,
+            TestObj.objects.filter(~~(Q(m2ms__int_value=10) & Q(m2ms__char_value='bar'))))
+        self.assertIn(
+            test_obj,
+            TestObj.objects.filter(~~expr))
 
 
 class ComparisonFunctionsTest(TestCase):
