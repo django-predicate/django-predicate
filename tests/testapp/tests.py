@@ -167,6 +167,18 @@ class RelationshipFollowTest(TestCase):
             test_obj,
             OrmP(m2ms__int_value=10) & OrmP(m2ms__char_value='foo'))
 
+    def test_negation_joint_conditions(self):
+        test_obj = TestObj.objects.create()
+        test_obj.m2ms.create(int_value=10, char_value='foo')
+        test_obj.m2ms.create(int_value=20, char_value='bar')
+        self.assertNotIn(
+            test_obj,
+            TestObj.objects.filter(~Q(m2ms__int_value=10, m2ms__char_value='bar'))
+        )
+        self.assertNotIn(
+            test_obj,
+            ~OrmP(m2ms__int_value=10, m2ms__char_value='bar'))
+
     def test_de_morgan_law(self):
         """
         Tests De Morgan's law as it relates to the Django ORM.
