@@ -60,6 +60,25 @@ class P(Q):
         else:
             return ret
 
+    def __invert__(self):
+        if self.connector == self.OR or len(self.children) == 1:
+            return super(P, self).__invert__()
+        elif self.connector == self.AND:
+            # Special handling for negation of AND conditions. This helps work around
+            # De Morgan law violations in django < 1.10 (and possibly also 1.10).
+            obj = type(self)()
+            obj.connector = self.OR
+            for child in self.children:
+                if isinstance(child, tuple):
+                    # (lookup, value) pair.
+                    new_child = ~type(self)(child)
+                else:
+                    new_child = ~child
+                obj.children.append(new_child)
+            return obj
+        else:
+            raise NotImplementedError('Unhandled connector %s' % self.connector)
+
     def filter(self, iterable):
         """
         Returns a filtered list of applying self to the elements of iterable.
