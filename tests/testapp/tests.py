@@ -134,43 +134,17 @@ class RelationshipFollowTest(TestCase):
         self.assertNotIn(test_obj, OrmP(m2ms=m2m2))
         self.assertNotIn(test_obj, OrmP(m2ms__int_value=30))
 
-    def test_joint_conditions(self):
-        """
-        Test that joint conditions must be on the same aliased instance.
 
-        In particular P(rel__attr1=val1, rel__attr2=val2) produces only a
-        single join, so the two conditions must be jointly satisfied on the
-        same database row.
-        """
-        test_obj = TestObj.objects.create()
-        test_obj.m2ms.create(int_value=10, char_value='foo')
-        test_obj.m2ms.create(int_value=20, char_value='bar')
+class TestJointConditions(TestCase):
 
-        test_obj2 = TestObj.objects.create()
-        test_obj2.m2ms.create(int_value=10, char_value='bar')
-        test_obj2.m2ms.create(int_value=20, char_value='foo')
+    def setUp(self):
+        self.test_obj = TestObj.objects.create()
+        self.test_obj.m2ms.create(int_value=10, char_value='foo')
+        self.test_obj.m2ms.create(int_value=20, char_value='bar')
 
-        self._assert_P_matches_Q(
-            test_obj,
-            p=P(m2ms__int_value=10, m2ms__char_value='bar'),
-            q=Q(m2ms__int_value=10, m2ms__char_value='bar'),
-        )
-        self._assert_P_matches_Q(
-            test_obj,
-            p=OrmP(m2ms__int_value=10, m2ms__char_value='foo'),
-            q=Q(m2ms__int_value=10, m2ms__char_value='foo'),
-        )
-        self._assert_P_matches_Q(
-            test_obj,
-            p=OrmP(m2ms__int_value=10) & OrmP(m2ms__char_value='bar'),
-            q=Q(m2ms__int_value=10) & Q(m2ms__char_value='bar'),
-        )
-
-        self._assert_P_matches_Q(
-            test_obj,
-            p=OrmP(m2ms__int_value=10) & OrmP(m2ms__char_value='foo'),
-            q=Q(m2ms__int_value=10) & Q(m2ms__char_value='foo'),
-        )
+        self.test_obj2 = TestObj.objects.create()
+        self.test_obj2.m2ms.create(int_value=10, char_value='bar')
+        self.test_obj2.m2ms.create(int_value=20, char_value='foo')
 
     def _assert_P_matches_Q(self, instance, p, q):
         """
@@ -204,54 +178,76 @@ class RelationshipFollowTest(TestCase):
                 set(manager.filter(q)),
             )
 
-    def test_negation_joint_conditions(self):
-        test_obj = TestObj.objects.create()
-        test_obj.m2ms.create(int_value=10, char_value='foo')
-        test_obj.m2ms.create(int_value=20, char_value='bar')
+    def test_joint_conditions(self):
+        """
+        Test that joint conditions must be on the same aliased instance.
 
-        test_obj2 = TestObj.objects.create()
-        test_obj2.m2ms.create(int_value=10, char_value='bar')
-        test_obj2.m2ms.create(int_value=20, char_value='foo')
+        In particular P(rel__attr1=val1, rel__attr2=val2) produces only a
+        single join, so the two conditions must be jointly satisfied on the
+        same database row.
+        """
+        self._assert_P_matches_Q(
+            self.test_obj,
+            p=P(m2ms__int_value=10, m2ms__char_value='bar'),
+            q=Q(m2ms__int_value=10, m2ms__char_value='bar'),
+        )
+        self._assert_P_matches_Q(
+            self.test_obj,
+            p=P(m2ms__int_value=10, m2ms__char_value='foo'),
+            q=Q(m2ms__int_value=10, m2ms__char_value='foo'),
+        )
+        self._assert_P_matches_Q(
+            self.test_obj,
+            p=P(m2ms__int_value=10) & OrmP(m2ms__char_value='bar'),
+            q=Q(m2ms__int_value=10) & Q(m2ms__char_value='bar'),
+        )
 
         self._assert_P_matches_Q(
-            test_obj,
-            p=~OrmP(m2ms__int_value=10, m2ms__char_value='bar'),
+            self.test_obj,
+            p=P(m2ms__int_value=10) & OrmP(m2ms__char_value='foo'),
+            q=Q(m2ms__int_value=10) & Q(m2ms__char_value='foo'),
+        )
+
+    def test_negation_joint_conditions(self):
+        self._assert_P_matches_Q(
+            self.test_obj,
+            p=~P(m2ms__int_value=10, m2ms__char_value='bar'),
             q=~Q(m2ms__int_value=10, m2ms__char_value='bar'),
         )
 
         self.assertIn(
-            test_obj,
+            self.test_obj,
             TestObj.objects.filter(~~Q(m2ms__int_value=10, m2ms__char_value='bar'))
         )
         self.assertIn(
-            test_obj,
-            ~~OrmP(m2ms__int_value=10, m2ms__char_value='bar'))
+            self.test_obj,
+            ~~P(m2ms__int_value=10, m2ms__char_value='bar'))
         self._assert_P_matches_Q(
-            test_obj,
-            p=~~OrmP(m2ms__int_value=10, m2ms__char_value='bar'),
+            self.test_obj,
+            p=~~P(m2ms__int_value=10, m2ms__char_value='bar'),
             q=~~Q(m2ms__int_value=10, m2ms__char_value='bar'),
         )
 
         self.assertNotIn(
-            test_obj,
+            self.test_obj,
             TestObj.objects.filter(~~~Q(m2ms__int_value=10, m2ms__char_value='bar'))
         )
         self.assertNotIn(
-            test_obj,
-            ~~~OrmP(m2ms__int_value=10, m2ms__char_value='bar'))
+            self.test_obj,
+            ~~~P(m2ms__int_value=10, m2ms__char_value='bar'))
         self._assert_P_matches_Q(
-            test_obj,
-            p=~~~OrmP(m2ms__int_value=10, m2ms__char_value='bar'),
+            self.test_obj,
+            p=~~~P(m2ms__int_value=10, m2ms__char_value='bar'),
             q=~~~Q(m2ms__int_value=10, m2ms__char_value='bar'),
         )
 
         self.assertIn(
-            test_obj,
-            ~~OrmP(m2ms__int_value=10, m2ms__char_value='foo'))
+            self.test_obj,
+            ~~P(m2ms__int_value=10, m2ms__char_value='foo'))
         self._assert_P_matches_Q(
-            test_obj,
+            self.test_obj,
             q=~~Q(m2ms__int_value=10, m2ms__char_value='foo'),
-            p=~~OrmP(m2ms__int_value=10, m2ms__char_value='foo'),
+            p=~~P(m2ms__int_value=10, m2ms__char_value='foo'),
         )
 
     def test_de_morgan_law(self):
@@ -263,16 +259,8 @@ class RelationshipFollowTest(TestCase):
             https://github.com/django/django/pull/6005#issuecomment-184016682
         since Django may start to obey De Morgan's law in Django >= 1.10.
         """
-        test_obj = TestObj.objects.create()
-        test_obj.m2ms.create(int_value=10, char_value='foo')
-        test_obj.m2ms.create(int_value=20, char_value='bar')
-
-        test_obj2 = TestObj.objects.create()
-        test_obj2.m2ms.create(int_value=10, char_value='bar')
-        test_obj2.m2ms.create(int_value=20, char_value='foo')
-
-        expr = OrmP(m2ms__int_value=10) & OrmP(m2ms__char_value='bar')
-        transformed_expr = ~(~OrmP(m2ms__int_value=10) | ~OrmP(m2ms__char_value='bar'))
+        expr = P(m2ms__int_value=10) & OrmP(m2ms__char_value='bar')
+        transformed_expr = ~(~P(m2ms__int_value=10) | ~P(m2ms__char_value='bar'))
         # By De Morgan's law, these expressions are equivalent:
         #     (A ∧ B) ⇔ ¬(¬A ∨ ¬B)
         # Translated into the ORM, and different queries are constructed for
@@ -310,39 +298,39 @@ class RelationshipFollowTest(TestCase):
         # First show that these are not equivalent in the ORM, to verify that this
         # is not a bug in the predicate.P implementation.
         self.assertNotIn(
-            test_obj,
+            self.test_obj,
             TestObj.objects.filter(Q(m2ms__int_value=10) & Q(m2ms__char_value='bar')))
         self.assertNotIn(
-            test_obj,
+            self.test_obj,
             TestObj.objects.filter(expr))
 
         self.assertIn(
-            test_obj,
+            self.test_obj,
             TestObj.objects.filter(~(~Q(m2ms__int_value=10) | ~Q(m2ms__char_value='bar'))))
         self.assertIn(
-            test_obj,
+            self.test_obj,
             TestObj.objects.filter(transformed_expr))
 
-        self.assertNotIn(test_obj, expr)
-        self.assertIn(test_obj, transformed_expr)
+        self.assertNotIn(self.test_obj, expr)
+        self.assertIn(self.test_obj, transformed_expr)
 
         # Negate the queries, but weirdly, that doeesn't cause the answer to change.
         self._assert_P_matches_Q(
-            test_obj,
+            self.test_obj,
             ~expr,
             ~(Q(m2ms__int_value=10) & Q(m2ms__char_value='bar')),
         )
         self.assertNotIn(
-            test_obj,
+            self.test_obj,
             TestObj.objects.filter(~expr))
 
         # Test double negation still returns us to where we were originally.
         self._assert_P_matches_Q(
-            test_obj,
+            self.test_obj,
             ~~expr,
             ~~(Q(m2ms__int_value=10) & Q(m2ms__char_value='bar'))),
         self.assertIn(
-            test_obj,
+            self.test_obj,
             TestObj.objects.filter(~~expr))
 
 
