@@ -146,6 +146,10 @@ class RelationshipFollowTest(TestCase):
         test_obj.m2ms.create(int_value=10, char_value='foo')
         test_obj.m2ms.create(int_value=20, char_value='bar')
 
+        test_obj2 = TestObj.objects.create()
+        test_obj2.m2ms.create(int_value=10, char_value='bar')
+        test_obj2.m2ms.create(int_value=20, char_value='foo')
+
         self._assert_P_matches_Q(
             test_obj,
             p=P(m2ms__int_value=10, m2ms__char_value='bar'),
@@ -184,7 +188,7 @@ class RelationshipFollowTest(TestCase):
             (p & ~p, q & ~q),
             # (p | ~p, q | ~q),
             (~(p & ~p), ~(q & ~q)),
-            # (~(p | ~p), ~(q | ~q)),
+            (~(p | ~p), ~(q | ~q)),
         ]
         for predicate, query in transform_pairs:
             self.assertEqual(
@@ -262,6 +266,10 @@ class RelationshipFollowTest(TestCase):
         test_obj = TestObj.objects.create()
         test_obj.m2ms.create(int_value=10, char_value='foo')
         test_obj.m2ms.create(int_value=20, char_value='bar')
+
+        test_obj2 = TestObj.objects.create()
+        test_obj2.m2ms.create(int_value=10, char_value='bar')
+        test_obj2.m2ms.create(int_value=20, char_value='foo')
 
         expr = OrmP(m2ms__int_value=10) & OrmP(m2ms__char_value='bar')
         transformed_expr = ~(~OrmP(m2ms__int_value=10) | ~OrmP(m2ms__char_value='bar'))
