@@ -4,6 +4,7 @@ from datetime import date
 from datetime import datetime
 from datetime import timedelta
 from random import choice, random
+from unittest import expectedFailure
 
 import mock
 from django.core.exceptions import MultipleObjectsReturned
@@ -207,6 +208,28 @@ class TestJointConditions(TestCase):
             p=P(m2ms__int_value=10) & OrmP(m2ms__char_value='foo'),
             q=Q(m2ms__int_value=10) & Q(m2ms__char_value='foo'),
         )
+
+    @expectedFailure
+    def test_law_of_excluded_middle(self):
+        """
+        Django appears to obey the law of excluded middle p|~p is always
+        satisfied.
+
+        However, it's _not_ the case that p OR ~p is always satisfied, so the
+        implementation in P does not match django's in some edge cases.
+        """
+        p = P(m2ms__int_value=10, m2ms__char_value='bar')
+        q = Q(m2ms__int_value=10, m2ms__char_value='bar')
+        self._assert_P_matches_Q(self.test_obj, p=p, q=q)
+
+        self.assertNotIn(self.test_obj, p)
+        self.assertNotIn(self.test_obj, ~p)
+        # Since evaluation of the disjunction is just logical OR of the
+        # disjuncts, since the
+        self.assertNotIn(self.test_obj, p | ~p)
+
+        self._assert_P_matches_Q(self.test_obj, p=p, q=q)
+        self._assert_P_matches_Q(self.test_obj, p=(p | ~p), q=(q | ~q))
 
     def test_negation_joint_conditions(self):
         self._assert_P_matches_Q(
