@@ -146,26 +146,27 @@ class RelationshipFollowTest(TestCase):
         test_obj.m2ms.create(int_value=10, char_value='foo')
         test_obj.m2ms.create(int_value=20, char_value='bar')
 
-        self.assertNotIn(
+        self._assert_P_matches_Q(
             test_obj,
-            TestObj.objects.filter(m2ms__int_value=10, m2ms__char_value='bar'))
-        self.assertIn(
+            p=P(m2ms__int_value=10, m2ms__char_value='bar'),
+            q=Q(m2ms__int_value=10, m2ms__char_value='bar'),
+        )
+        self._assert_P_matches_Q(
             test_obj,
-            TestObj.objects.filter(m2ms__int_value=10, m2ms__char_value='foo'))
+            p=OrmP(m2ms__int_value=10, m2ms__char_value='foo'),
+            q=Q(m2ms__int_value=10, m2ms__char_value='foo'),
+        )
+        self._assert_P_matches_Q(
+            test_obj,
+            p=OrmP(m2ms__int_value=10) & OrmP(m2ms__char_value='bar'),
+            q=Q(m2ms__int_value=10) & Q(m2ms__char_value='bar'),
+        )
 
-        self.assertNotIn(
+        self._assert_P_matches_Q(
             test_obj,
-            OrmP(m2ms__int_value=10, m2ms__char_value='bar'))
-        self.assertIn(
-            test_obj,
-            OrmP(m2ms__int_value=10, m2ms__char_value='foo'))
-
-        self.assertNotIn(
-            test_obj,
-            OrmP(m2ms__int_value=10) & OrmP(m2ms__char_value='bar'))
-        self.assertIn(
-            test_obj,
-            OrmP(m2ms__int_value=10) & OrmP(m2ms__char_value='foo'))
+            p=OrmP(m2ms__int_value=10) & OrmP(m2ms__char_value='foo'),
+            q=Q(m2ms__int_value=10) & Q(m2ms__char_value='foo'),
+        )
 
     def _assert_P_matches_Q(self, instance, p, q):
         """
@@ -177,18 +178,27 @@ class RelationshipFollowTest(TestCase):
         equivalent, but not necessarily identical SQL
         """
         manager = type(instance)._default_manager
-        self.assertEqual(
-            instance in p,
-            instance in manager.filter(q)
-        )
-        self.assertEqual(
-            instance in p,
-            instance in manager.filter(p)
-        )
-        self.assertEqual(
-            set(manager.filter(p)),
-            set(manager.filter(q)),
-        )
+        transform_pairs = [
+            (p, q),
+            (~p, ~q),
+            (p & ~p, q & ~q),
+            # (p | ~p, q | ~q),
+            (~(p & ~p), ~(q & ~q)),
+            # (~(p | ~p), ~(q | ~q)),
+        ]
+        for predicate, query in transform_pairs:
+            self.assertEqual(
+                instance in predicate,
+                instance in manager.filter(query)
+            )
+            self.assertEqual(
+                instance in predicate,
+                instance in manager.filter(predicate)
+            )
+            self.assertEqual(
+                set(manager.filter(p)),
+                set(manager.filter(q)),
+            )
 
     def test_negation_joint_conditions(self):
         test_obj = TestObj.objects.create()
