@@ -21,6 +21,7 @@ from predicate.predicate import LookupComponent
 from predicate.predicate import LookupNode
 from predicate.predicate import LookupNotFound
 from predicate import P
+from predicate import PredicateQuerySet
 from models import CustomRelatedNameOneToOneModel
 from models import ForeignKeyModel
 from models import M2MModel
@@ -832,3 +833,30 @@ class TestDebugTools(TestCase):
         self.assertTrue(patched.called)
         with patch_with_orm_eval():
             self.assertIn(self.test_obj, P(int_value=10))
+
+
+class TestPredicateQuerySet(TestCase):
+    def setUp(self):
+        make_test_objects()
+
+    def test_all(self):
+        all_objs = TestObj.objects.all()
+        all_objs._fetch_all()
+        pred_qs = PredicateQuerySet(all_objs)
+        self.assertEqual(pred_qs.all().iterable, all_objs._result_cache)
+
+    def test_filter(self):
+        # TODO: fill out rest
+        self.assertEqual(2 + 2, 5)
+
+    def test_exclude(self):
+        pass
+
+    def test_get(self):
+        pass
+
+    def test_exists(self):
+        pass
+
+    def test_count(self):
+        pass

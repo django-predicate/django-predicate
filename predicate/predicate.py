@@ -11,6 +11,7 @@ from django.db import models
 from django.db.models import Manager
 from django.db.models import QuerySet
 from django.db.models.constants import LOOKUP_SEP
+from django.db.models.query import REPR_OUTPUT_SIZE
 from django.db.models.query_utils import Q
 from django.utils.functional import cached_property
 
@@ -357,3 +358,38 @@ def get_values_list(obj, *lookups, **kwargs):
     else:
         return [tuple(value_dict[lookup].value for lookup in lookups)
                 for value_dict in value_dicts]
+
+
+class PredicateQuerySet(object):
+    """
+    Iterable wrapper that follows the QuerySet API.
+    """
+    def __init__(self, iterable):
+        self.iterable = list(iterable)
+
+    def __repr__(self):
+        data = list(self.iterable[:REPR_OUTPUT_SIZE + 1])
+        if len(data) > REPR_OUTPUT_SIZE:
+            data[-1] = "...(remaining elements truncated)..."
+        return '<PredicateQuerySet %r>' % data
+
+    def __iter__(self):
+        return iter(self.iterable)
+
+    def all(self):
+        return self
+
+    def filter(self, **kwargs):
+        return self.__class__(P(**kwargs).filter(self.iterable))
+
+    def exclude(self, **kwargs):
+        return self.__class__(P(**kwargs).exclude(self.iterable))
+
+    def get(self, **kwargs):
+        return P(**kwargs).get(self.iterable)
+
+    def exists(self):
+        return bool(self.iterable)
+
+    def count(self):
+        return len(self.iterable)
