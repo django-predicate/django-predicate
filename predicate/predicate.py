@@ -368,7 +368,7 @@ class PredicateQuerySet(object):
         self.iterable = list(iterable)
 
     def __repr__(self):
-        data = list(self.iterable[:REPR_OUTPUT_SIZE + 1])
+        data = self.iterable[:REPR_OUTPUT_SIZE + 1]
         if len(data) > REPR_OUTPUT_SIZE:
             data[-1] = "...(remaining elements truncated)..."
         return '<PredicateQuerySet %r>' % data
