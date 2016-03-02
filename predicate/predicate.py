@@ -1,3 +1,4 @@
+import copy
 import itertools
 
 import django
@@ -15,6 +16,8 @@ from django.db.models.query import REPR_OUTPUT_SIZE
 from django.db.models.query_utils import Q
 from django.utils.functional import cached_property
 
+from .constants import AND
+from .constants import OR
 from .lookup_utils import LOOKUP_TO_EVALUATOR
 
 
@@ -364,32 +367,86 @@ class PredicateQuerySet(object):
     """
     Iterable wrapper that follows the QuerySet API.
     """
-    def __init__(self, iterable):
-        self.iterable = list(iterable)
+    def __init__(self, iterable, p=None):
+        self._evaluated = False
+        self.iterable = iterable
+        if p is None:
+            p = P()
+        self.P = p
+
+    def _evaluate(self):
+        """
+        Applies own filters to stored iterable.
+        """
+        if self._evaluated:
+            return
+        self._evaluated = True
+        self.iterable = self.P.filter(self.iterable)
 
     def __repr__(self):
+        self._evaluate()
         data = self.iterable[:REPR_OUTPUT_SIZE + 1]
         if len(data) > REPR_OUTPUT_SIZE:
             data[-1] = "...(remaining elements truncated)..."
         return '<PredicateQuerySet %r>' % data
 
+    def __getitem__(self, k):
+        self._evaluate()
+        if isinstance(k, slice):
+            return self.__class__(self.iterable[k])
+        return self.iterable[k]
+
     def __iter__(self):
         return iter(self.iterable)
 
+    def _clone(self):
+        clone = type(self)(None)
+        for name, value in self.__dict__.iteritems():
+            setattr(clone, name, copy.deepcopy(value))
+        clone._evaluated = False
+        return clone
+
     def all(self):
-        return self
+        return self._clone()
 
-    def filter(self, **kwargs):
-        return self.__class__(P(**kwargs).filter(self.iterable))
+    def filter(self, *args, **kwargs):
+        clone = self._clone()
+        clone.P.children.append(P(*args, **kwargs))
+        return clone
 
-    def exclude(self, **kwargs):
-        return self.__class__(P(**kwargs).exclude(self.iterable))
+    def exclude(self, *args, **kwargs):
+        clone = self._clone()
+        clone.P.children.append(~P(*args, **kwargs))
+        return clone
 
-    def get(self, **kwargs):
-        return P(**kwargs).get(self.iterable)
+    def get(self, *args, **kwargs):
+        clone = self.filter(*args, **kwargs)
+        return clone.P.get(clone.iterable)
 
     def exists(self):
+        self._evaluate()
         return bool(self.iterable)
 
     def count(self):
+        self._evaluate()
         return len(self.iterable)
+
+    def _combine(self, other, connector):
+        clone1 = self._clone()
+        clone2 = other._clone()
+        iterable = itertools.chain(clone1.iterable, clone2.iterable)
+
+        if connector == AND:
+            p = clone1.P & clone2.P
+        elif connector == OR:
+            p = clone2.P | clone2.P
+        else:
+            raise ValueError('Invalid logical connector: %s' % connector)
+
+        return type(self)(iterable, p=p)
+
+    def __and__(self, other):
+        return self._combine(other, AND)
+
+    def __or__(self, other):
+        return self._combine(other, OR)
