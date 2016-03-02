@@ -450,3 +450,10 @@ class PredicateQuerySet(object):
 
     def __or__(self, other):
         return self._combine(other, OR)
+
+    def __bool__(self):
+        self._evaluate()
+        return bool(self.iterable)
+
+    def __nonzero__(self):
+        return type(self).__bool__(self)
