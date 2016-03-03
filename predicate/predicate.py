@@ -16,8 +16,6 @@ from django.db.models.query import REPR_OUTPUT_SIZE
 from django.db.models.query_utils import Q
 from django.utils.functional import cached_property
 
-from .constants import AND
-from .constants import OR
 from .lookup_utils import LOOKUP_TO_EVALUATOR
 
 
@@ -55,7 +53,7 @@ class P(Q):
         """
         Returns true if the model instance matches this predicate
         """
-        evaluators = {"AND": all, "OR": any}
+        evaluators = {self.AND: all, self.OR: any}
         evaluator = evaluators[self.connector]
         ret = evaluator(
             c.eval(instance) for c in eval_wrapper(self.children, connector=self.connector))
@@ -411,12 +409,12 @@ class PredicateQuerySet(object):
 
     def filter(self, *args, **kwargs):
         clone = self._clone()
-        clone.P.children.append(P(*args, **kwargs))
+        clone.P = clone.P & P(*args, **kwargs)
         return clone
 
     def exclude(self, *args, **kwargs):
         clone = self._clone()
-        clone.P.children.append(~P(*args, **kwargs))
+        clone.P = clone.P & ~P(*args, **kwargs)
         return clone
 
     def get(self, *args, **kwargs):
@@ -436,9 +434,9 @@ class PredicateQuerySet(object):
         clone2 = other._clone()
         iterable = itertools.chain(clone1.iterable, clone2.iterable)
 
-        if connector == AND:
+        if connector == Q.AND:
             p = clone1.P & clone2.P
-        elif connector == OR:
+        elif connector == Q.OR:
             p = clone2.P | clone2.P
         else:
             raise ValueError('Invalid logical connector: %s' % connector)
@@ -446,10 +444,10 @@ class PredicateQuerySet(object):
         return type(self)(iterable, p=p)
 
     def __and__(self, other):
-        return self._combine(other, AND)
+        return self._combine(other, Q.AND)
 
     def __or__(self, other):
-        return self._combine(other, OR)
+        return self._combine(other, Q.OR)
 
     def __bool__(self):
         self._evaluate()
