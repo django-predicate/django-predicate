@@ -432,7 +432,7 @@ class PredicateQuerySet(object):
     def _combine(self, other, connector):
         clone1 = self._clone()
         clone2 = other._clone()
-        iterable = itertools.chain(clone1.iterable, clone2.iterable)
+        iterable = list(itertools.chain(clone1, clone2))
 
         if connector == Q.AND:
             p = clone1.P & clone2.P

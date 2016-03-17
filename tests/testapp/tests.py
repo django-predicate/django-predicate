@@ -15,6 +15,7 @@ from django.test import TestCase
 
 from predicate.debug import OrmP
 from predicate.debug import patch_with_orm_eval
+from predicate.debug import OrmPredicateQuerySet
 from predicate.predicate import GET
 from predicate.predicate import get_values_list
 from predicate.predicate import LookupComponent
@@ -836,27 +837,63 @@ class TestDebugTools(TestCase):
 
 
 class TestPredicateQuerySet(TestCase):
+    """
+    ``OrmPredicateQuerySet`` class wraps ``PredicateQuerySet`` and ``QuerySet``
+    classes, and asserts they return the same values from public API methods.
+    """
     def setUp(self):
         make_test_objects()
 
     def test_all(self):
-        all_objs = TestObj.objects.all()
-        all_objs._fetch_all()
-        pred_qs = PredicateQuerySet(all_objs)
-        self.assertEqual(pred_qs.all().iterable, all_objs._result_cache)
+        queryset = TestObj.objects.all()
+        orm_pqs = OrmPredicateQuerySet(queryset)
+        orm_pqs.all()
+
+    def test_filter_all(self):
+        queryset = TestObj.objects.filter(int_value__lt=50)
+        orm_pqs = OrmPredicateQuerySet(queryset)
+        orm_pqs.all()
 
     def test_filter(self):
-        # TODO: fill out rest
-        self.assertEqual(2 + 2, 5)
+        queryset = TestObj.objects.all()
+        orm_pqs = OrmPredicateQuerySet(queryset)
+        orm_pqs.filter(int_value__lt=50)
+
+    def test_chain_filters(self):
+        queryset = TestObj.objects.all()
+        orm_pqs = OrmPredicateQuerySet(queryset)
+        filtered = orm_pqs.filter(int_value=10, char_value='foo')
+        filtered.filter(int_value__in=[1, 2])
 
     def test_exclude(self):
-        pass
+        queryset = TestObj.objects.all()
+        orm_pqs = OrmPredicateQuerySet(queryset)
+        orm_pqs.exclude(int_value__lt=50)
+        orm_pqs.exclude(int_value=10, char_value='foo')
 
     def test_get(self):
-        pass
+        TestObj.objects.all().delete()
+        obj1 = TestObj.objects.create(int_value=1)
+        obj2 = TestObj.objects.create(int_value=2)
+        orm_pqs = OrmPredicateQuerySet(TestObj.objects.all())
+
+        with self.assertRaises(ObjectDoesNotExist):
+            orm_pqs.get(int_value=3)
+        with self.assertRaises(MultipleObjectsReturned):
+            orm_pqs.get(int_value__lt=3)
+
+        orm_pqs.get(int_value=1)
+        orm_pqs.get(int_value=2)
 
     def test_exists(self):
-        pass
+        queryset = TestObj.objects.all()
+        orm_pqs = OrmPredicateQuerySet(queryset)
+        self.assertTrue(orm_pqs.exists())
+        queryset = TestObj.objects.none()
+        orm_pqs = OrmPredicateQuerySet(queryset)
+        self.assertFalse(orm_pqs.exists())
 
     def test_count(self):
-        pass
+        queryset = TestObj.objects.all()
+        orm_pqs = OrmPredicateQuerySet(queryset)
+        orm_pqs.count()
