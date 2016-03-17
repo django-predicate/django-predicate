@@ -432,11 +432,12 @@ class PredicateQuerySet(object):
     def _combine(self, other, connector):
         clone1 = self._clone()
         clone2 = other._clone()
-        iterable = list(itertools.chain(clone1, clone2))
 
         if connector == Q.AND:
+            iterable = filter(set(clone1).__contains__, clone2)
             p = clone1.P & clone2.P
         elif connector == Q.OR:
+            iterable = list(itertools.chain(clone1, clone2))
             p = clone2.P | clone2.P
         else:
             raise ValueError('Invalid logical connector: %s' % connector)

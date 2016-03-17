@@ -897,3 +897,25 @@ class TestPredicateQuerySet(TestCase):
         queryset = TestObj.objects.all()
         orm_pqs = OrmPredicateQuerySet(queryset)
         orm_pqs.count()
+
+    def test_or(self):
+        qs1 = TestObj.objects.filter(int_value__lt=50)
+        qs2 = TestObj.objects.filter(int_value__gte=50)
+        merged_qs = qs1 | qs2
+        pqs1 = PredicateQuerySet(qs1)
+        pqs2 = PredicateQuerySet(qs2)
+        merged_pqs = pqs1 | pqs2
+        self.assertListEqual(
+            list(sorted(merged_qs, key=lambda obj: obj.id)),
+            list(sorted(merged_pqs, key=lambda obj: obj.id)))
+
+    def test_and(self):
+        qs1 = TestObj.objects.filter(int_value__lt=50)
+        qs2 = TestObj.objects.filter(int_value__gte=50)
+        merged_qs = qs1 & qs2
+        pqs1 = PredicateQuerySet(qs1)
+        pqs2 = PredicateQuerySet(qs2)
+        merged_pqs = pqs1 & pqs2
+        self.assertListEqual(
+            list(sorted(merged_qs, key=lambda obj: obj.id)),
+            list(sorted(merged_pqs, key=lambda obj: obj.id)))
