@@ -898,6 +898,13 @@ class TestPredicateQuerySet(TestCase):
         orm_pqs = OrmPredicateQuerySet(queryset)
         orm_pqs.count()
 
+    def assertResultsEqual(self, queryset, predicatequeryset):
+        queryset._fetch_all()
+        predicatequeryset._evaluate()
+        def sort(iterable):
+            return list(sorted(iterable, key=lambda obj: obj.id))
+        self.assertListEqual(sort(queryset), sort(predicatequeryset))
+
     def test_or(self):
         qs1 = TestObj.objects.filter(int_value__lt=50)
         qs2 = TestObj.objects.filter(int_value__gte=50)
@@ -905,17 +912,23 @@ class TestPredicateQuerySet(TestCase):
         pqs1 = PredicateQuerySet(qs1)
         pqs2 = PredicateQuerySet(qs2)
         merged_pqs = pqs1 | pqs2
-        self.assertListEqual(
-            list(sorted(merged_qs, key=lambda obj: obj.id)),
-            list(sorted(merged_pqs, key=lambda obj: obj.id)))
+        self.assertResultsEqual(merged_qs, merged_pqs)
+
+        char_filter = {'char_value__icontains': 'red'}
+        merged_qs = qs1.filter(**char_filter) | qs2.filter(**char_filter)
+        merged_pqs = pqs1.filter(**char_filter) | pqs2.filter(**char_filter)
+        self.assertResultsEqual(merged_qs, merged_pqs)
 
     def test_and(self):
         qs1 = TestObj.objects.filter(int_value__lt=50)
-        qs2 = TestObj.objects.filter(int_value__gte=50)
+        qs2 = TestObj.objects.filter(int_value__gte=25)
         merged_qs = qs1 & qs2
         pqs1 = PredicateQuerySet(qs1)
         pqs2 = PredicateQuerySet(qs2)
         merged_pqs = pqs1 & pqs2
-        self.assertListEqual(
-            list(sorted(merged_qs, key=lambda obj: obj.id)),
-            list(sorted(merged_pqs, key=lambda obj: obj.id)))
+        self.assertResultsEqual(merged_qs, merged_pqs)
+
+        char_filter = {'char_value__icontains': 'red'}
+        merged_qs = qs1.filter(**char_filter) & qs2.filter(**char_filter)
+        merged_pqs = pqs1.filter(**char_filter) & pqs2.filter(**char_filter)
+        self.assertResultsEqual(merged_qs, merged_pqs)
