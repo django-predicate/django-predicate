@@ -1,6 +1,5 @@
 import itertools
 
-import django
 try:
     from django.core.exceptions import FieldDoesNotExist
 except ImportError:  # Django <1.8
@@ -14,6 +13,7 @@ from django.db.models.constants import LOOKUP_SEP
 from django.db.models.query_utils import Q
 from django.utils.functional import cached_property
 
+from .lookup_utils import get_field_and_accessor
 from .lookup_utils import LOOKUP_TO_EVALUATOR
 
 
@@ -154,14 +154,7 @@ class LookupComponent(str):
 
         Raises FieldDoesNotExist if the field cannot be found.
         """
-        if self == 'pk':
-            return getattr(obj, 'pk')
-        elif django.VERSION < (1, 8):
-            field, model, direct,  m2m = obj._meta.get_field_by_name(self)
-        else:
-            field = obj._meta.get_field(self)
-            direct = not field.auto_created or field.concrete
-        accessor = self if direct else field.get_accessor_name()
+        field, accessor = get_field_and_accessor(obj, self)
         try:
             return getattr(obj, accessor)
         except ObjectDoesNotExist:
