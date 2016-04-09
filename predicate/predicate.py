@@ -12,6 +12,8 @@ from django.db.models import QuerySet
 from django.db.models.constants import LOOKUP_SEP
 from django.db.models.query_utils import Q
 from django.utils.functional import cached_property
+from django.utils import six
+from six.moves import zip, filter
 
 from .lookup_utils import get_field_and_accessor
 from .lookup_utils import LOOKUP_TO_EVALUATOR
@@ -90,7 +92,7 @@ class P(Q):
 
         This is a similar API to QuerySet.filter.
         """
-        return filter(self.eval, iterable)
+        return list(filter(self.eval, iterable))
 
     def exclude(self, iterable):
         """
@@ -98,7 +100,7 @@ class P(Q):
 
         This is a similar API to QuerySet.exclude.
         """
-        return filter((~self).eval, iterable)
+        return list(filter((~self).eval, iterable))
 
     def get(self, iterable):
         """
@@ -134,7 +136,7 @@ class LookupComponent(str):
         """
         if not lookup:  # Handle '' standing in for leaf components in lookups.
             return []
-        return map(cls, lookup.split(LOOKUP_SEP))
+        return [cls(component) for component in lookup.split(LOOKUP_SEP)]
 
     @property
     def is_query(self):
@@ -209,7 +211,7 @@ class LookupNode(object):
         self.connector = connector
         self.children = {}
         if lookups is not None:
-            for lookup, value in lookups.viewitems():
+            for lookup, value in six.viewitems(lookups):
                 self[lookup] = value
 
     @property
@@ -239,7 +241,7 @@ class LookupNode(object):
 
     def iteritems(self, lookup_stack=None):
         lookup_stack = [] if lookup_stack is None else lookup_stack
-        for component, node in self.children.viewitems():
+        for component, node in six.viewitems(self.children):
             if component == LookupComponent.EMPTY:
                 yield (LookupComponent(LOOKUP_SEP.join(lookup_stack)),
                        self.value)
@@ -318,7 +320,7 @@ class LookupNode(object):
         # corresponds to a database join among the lookups.
         # TODO: Does this handle inner and outer joins properly?
         children_iters = (
-            itertools.izip(itertools.repeat(lookup), values)
+            zip(itertools.repeat(lookup), values)
             for lookup, values in lookup2values.items())
         results = []
         for child_product in itertools.product(*children_iters):
