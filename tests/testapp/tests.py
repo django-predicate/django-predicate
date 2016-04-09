@@ -572,6 +572,8 @@ class TestBooleanOperations(TestCase):
         self.assertTrue(pand1.eval(self.testobj))
         self.assertFalse(pand2.eval(self.testobj))
 
+        self.assertNotIn(self.testobj, OrmP(int_value=20) & OrmP(int_value=50))
+
     def test_or(self):
         self.testobj.m2ms.create(int_value=10)
         p1 = OrmP(char_value__contains='hello', int_value=50)
@@ -591,6 +593,9 @@ class TestBooleanOperations(TestCase):
         self.assertIn(self.testobj, OrmP(m2ms__int_value=10) | OrmP(char_value='hello world'))
         self.assertIn(self.testobj, OrmP(m2ms__int_value=10) | OrmP(char_value='something else'))
         self.assertIn(self.testobj, OrmP(char_value='something else') | OrmP(m2ms__int_value=10))
+
+        self.assertIn(self.testobj, OrmP(int_value__in=[50, 20]))
+        self.assertIn(self.testobj, OrmP(int_value=50) | OrmP(int_value=20))
 
     def test_not(self):
         self.assertIn(self.testobj, OrmP(int_value=self.testobj.int_value))

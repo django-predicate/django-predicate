@@ -1,5 +1,7 @@
 import itertools
 
+from django.utils.tree import Node
+
 try:
     from django.core.exceptions import FieldDoesNotExist
 except ImportError:  # Django <1.8
@@ -63,6 +65,39 @@ class P(Q):
             return not ret
         else:
             return ret
+
+    def add(self, data, conn_type, squash=True):
+        """
+        Adapted from `django.utils.tree.Node.add`` to handle the case of
+        repeating the same lookup.  This isn't well handled by LookupTree, so we
+        need to specially handle cases like ``P(x=1) | P(x=2)``.
+        """
+        if data in self.children:
+            return data
+        if not squash:
+            self.children.append(data)
+            return data
+        if self.connector == conn_type:
+            if (isinstance(data, Node) and not data.negated
+                    and (data.connector == conn_type or len(data) == 1)):
+                for child in data.children:
+                    self.add(child, conn_type, squash=squash)
+                return self
+            else:
+                if isinstance(data, tuple) and any(
+                        isinstance(child, tuple) and child[0] == data[0]
+                        for child in self.children):
+                    # Special handling for cases where we already have this lookup.
+                    self.add(type(self)(data), conn_type, squash=False)
+                else:
+                    self.children.append(data)
+                return data
+        else:
+            obj = self._new_instance(self.children, self.connector,
+                                     self.negated)
+            self.connector = conn_type
+            self.children = [obj, data]
+            return data
 
     def __invert__(self):
         if len(self.children) == 1:
