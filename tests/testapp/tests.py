@@ -16,12 +16,14 @@ from django.utils import six
 
 from predicate.debug import OrmP
 from predicate.debug import patch_with_orm_eval
+from predicate.debug import OrmPredicateQuerySet
 from predicate.predicate import GET
 from predicate.predicate import get_values_list
 from predicate.predicate import LookupComponent
 from predicate.predicate import LookupNode
 from predicate.predicate import LookupNotFound
 from predicate import P
+from predicate import PredicateQuerySet
 from .models import CustomRelatedNameOneToOneModel
 from .models import ForeignKeyModel
 from .models import M2MModel
@@ -847,3 +849,113 @@ class TestDebugTools(TestCase):
         self.assertTrue(patched.called)
         with patch_with_orm_eval():
             self.assertIn(self.test_obj, P(int_value=10))
+
+
+class TestPredicateQuerySet(TestCase):
+    """
+    ``OrmPredicateQuerySet`` class wraps ``PredicateQuerySet`` and ``QuerySet``
+    classes, and asserts they return the same values from public API methods.
+    """
+    def setUp(self):
+        make_test_objects()
+
+    def test_all(self):
+        queryset = TestObj.objects.all()
+        orm_pqs = OrmPredicateQuerySet(queryset)
+        orm_pqs.all()
+
+    def test_filter_all(self):
+        queryset = TestObj.objects.filter(int_value__lt=50)
+        orm_pqs = OrmPredicateQuerySet(queryset)
+        orm_pqs.all()
+
+    def test_filter(self):
+        queryset = TestObj.objects.all()
+        orm_pqs = OrmPredicateQuerySet(queryset)
+        orm_pqs.filter(int_value__lt=50)
+
+    def test_chain_filters(self):
+        queryset = TestObj.objects.all()
+        orm_pqs = OrmPredicateQuerySet(queryset)
+        filtered = orm_pqs.filter(int_value=10, char_value='foo')
+        filtered.filter(int_value__in=[1, 2])
+
+    def test_exclude(self):
+        queryset = TestObj.objects.all()
+        orm_pqs = OrmPredicateQuerySet(queryset)
+        orm_pqs.exclude(int_value__lt=50)
+        orm_pqs.exclude(int_value=10, char_value='foo')
+
+    def test_get(self):
+        TestObj.objects.all().delete()
+        TestObj.objects.create(int_value=1)
+        TestObj.objects.create(int_value=2)
+        orm_pqs = OrmPredicateQuerySet(TestObj.objects.all())
+
+        with self.assertRaises(ObjectDoesNotExist):
+            orm_pqs.get(int_value=3)
+        with self.assertRaises(MultipleObjectsReturned):
+            orm_pqs.get(int_value__lt=3)
+
+        orm_pqs.get(int_value=1)
+        orm_pqs.get(int_value=2)
+
+    def test_exists(self):
+        queryset = TestObj.objects.all()
+        orm_pqs = OrmPredicateQuerySet(queryset)
+        self.assertTrue(orm_pqs.exists())
+        queryset = TestObj.objects.none()
+        orm_pqs = OrmPredicateQuerySet(queryset)
+        self.assertFalse(orm_pqs.exists())
+
+    def test_count(self):
+        queryset = TestObj.objects.all()
+        orm_pqs = OrmPredicateQuerySet(queryset)
+        orm_pqs.count()
+
+    def assertResultsEqual(self, queryset, predicatequeryset):
+        queryset._fetch_all()
+        predicatequeryset._evaluate()
+
+        def sort(iterable):
+            return list(sorted(iterable, key=lambda obj: obj.id))
+
+        self.assertListEqual(sort(queryset), sort(predicatequeryset))
+
+    def test_or(self):
+        qs1 = TestObj.objects.filter(int_value__lt=50)
+        qs2 = TestObj.objects.filter(int_value__gte=50)
+        merged_qs = qs1 | qs2
+        pqs1 = PredicateQuerySet(qs1)
+        pqs2 = PredicateQuerySet(qs2)
+        merged_pqs = pqs1 | pqs2
+        self.assertResultsEqual(merged_qs, merged_pqs)
+
+        char_filter = {'char_value__icontains': 'red'}
+        merged_qs = qs1.filter(**char_filter) | qs2.filter(**char_filter)
+        merged_pqs = pqs1.filter(**char_filter) | pqs2.filter(**char_filter)
+        self.assertResultsEqual(merged_qs, merged_pqs)
+
+    def test_and(self):
+        qs1 = TestObj.objects.filter(int_value__lt=50)
+        qs2 = TestObj.objects.filter(int_value__gte=25)
+        merged_qs = qs1 & qs2
+        pqs1 = PredicateQuerySet(qs1)
+        pqs2 = PredicateQuerySet(qs2)
+        merged_pqs = pqs1 & pqs2
+        self.assertResultsEqual(merged_qs, merged_pqs)
+
+        char_filter = {'char_value__icontains': 'red'}
+        merged_qs = qs1.filter(**char_filter) & qs2.filter(**char_filter)
+        merged_pqs = pqs1.filter(**char_filter) & pqs2.filter(**char_filter)
+        self.assertResultsEqual(merged_qs, merged_pqs)
+
+    def test_getitem(self):
+        qs = TestObj.objects.filter(int_value__lt=50)
+        pqs = PredicateQuerySet(qs)
+        self.assertEqual(qs.count(), pqs.count())
+        for i in range(qs.count()):
+            self.assertEqual(qs[i], pqs[i])
+        for i in range(qs.count()):
+            for j in range(i + 1, qs.count()):
+                self.assertEqual(list(qs[i:j]), list(pqs[i:j]))
