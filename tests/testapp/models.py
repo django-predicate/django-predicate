@@ -23,6 +23,9 @@ class TestObj(Base):
     def some_property(self):
         return {'x': 'y'}
 
+    def __repr__(self):
+        return "<TestObj: %d>" % self.id
+
 
 class M2MModel(Base):
     pass

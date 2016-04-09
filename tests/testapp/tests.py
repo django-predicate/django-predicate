@@ -873,8 +873,8 @@ class TestPredicateQuerySet(TestCase):
 
     def test_get(self):
         TestObj.objects.all().delete()
-        obj1 = TestObj.objects.create(int_value=1)
-        obj2 = TestObj.objects.create(int_value=2)
+        TestObj.objects.create(int_value=1)
+        TestObj.objects.create(int_value=2)
         orm_pqs = OrmPredicateQuerySet(TestObj.objects.all())
 
         with self.assertRaises(ObjectDoesNotExist):
@@ -901,8 +901,10 @@ class TestPredicateQuerySet(TestCase):
     def assertResultsEqual(self, queryset, predicatequeryset):
         queryset._fetch_all()
         predicatequeryset._evaluate()
+
         def sort(iterable):
             return list(sorted(iterable, key=lambda obj: obj.id))
+
         self.assertListEqual(sort(queryset), sort(predicatequeryset))
 
     def test_or(self):
@@ -932,3 +934,13 @@ class TestPredicateQuerySet(TestCase):
         merged_qs = qs1.filter(**char_filter) & qs2.filter(**char_filter)
         merged_pqs = pqs1.filter(**char_filter) & pqs2.filter(**char_filter)
         self.assertResultsEqual(merged_qs, merged_pqs)
+
+    def test_getitem(self):
+        qs = TestObj.objects.filter(int_value__lt=50)
+        pqs = PredicateQuerySet(qs)
+        self.assertEqual(qs.count(), pqs.count())
+        for i in range(qs.count()):
+            self.assertEqual(qs[i], pqs[i])
+        for i in range(qs.count()):
+            for j in range(i+1, qs.count()):
+                self.assertEqual(list(qs[i:j]), list(pqs[i:j]))
