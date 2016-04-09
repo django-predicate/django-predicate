@@ -431,7 +431,7 @@ class PredicateQuerySet(object):
 
     def _clone(self):
         clone = type(self)(None)
-        for name, value in self.__dict__.iteritems():
+        for name, value in self.__dict__.items():
             setattr(clone, name, copy.deepcopy(value))
         clone._evaluated = False
         return clone
