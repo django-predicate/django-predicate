@@ -208,7 +208,7 @@ def get_field_and_accessor(instance_or_model, lookup_part):
         field = instance_or_model._meta.pk
         direct = True
     elif django.VERSION < (1, 8):
-        field, model, direct,  m2m = instance_or_model._meta.get_field_by_name(lookup_part)
+        field, model, direct, m2m = instance_or_model._meta.get_field_by_name(lookup_part)
     else:
         field = instance_or_model._meta.get_field(lookup_part)
         direct = not field.auto_created or field.concrete
