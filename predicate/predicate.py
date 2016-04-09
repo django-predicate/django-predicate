@@ -25,6 +25,8 @@ def eval_wrapper(children, connector):
     for child in children:
         if isinstance(child, P):
             yield child
+        elif isinstance(child, Q):
+            yield P._new_instance(child.children, child.connector, child.negated)
         elif isinstance(child, tuple):
             lookup, value = child
             lookups[lookup] = value

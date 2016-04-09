@@ -803,6 +803,15 @@ class TestFilteringMethods(TestCase):
         self.assertEqual(set(TestObj.objects.exclude(predicate)), set())
         self.assertEqual(set(predicate.exclude(self.objects)), set())
 
+    def test_nested_q(self):
+        predicate = OrmP(Q(int_value=1))
+        self.assertEqual(set(TestObj.objects.filter(predicate)), {self.obj1})
+        self.assertEqual(set(predicate.filter(self.objects)), {self.obj1})
+
+        predicate = OrmP(Q(Q(int_value=1)))
+        self.assertEqual(set(TestObj.objects.filter(predicate)), {self.obj1})
+        self.assertEqual(set(predicate.filter(self.objects)), {self.obj1})
+
 
 class TestDebugTools(TestCase):
     def setUp(self):
