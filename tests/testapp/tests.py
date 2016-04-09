@@ -12,6 +12,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from django.test import skipIfDBFeature
 from django.test import TestCase
+from django.utils import six
 
 from predicate.debug import OrmP
 from predicate.debug import patch_with_orm_eval
@@ -21,11 +22,11 @@ from predicate.predicate import LookupComponent
 from predicate.predicate import LookupNode
 from predicate.predicate import LookupNotFound
 from predicate import P
-from models import CustomRelatedNameOneToOneModel
-from models import ForeignKeyModel
-from models import M2MModel
-from models import OneToOneModel
-from models import TestObj
+from .models import CustomRelatedNameOneToOneModel
+from .models import ForeignKeyModel
+from .models import M2MModel
+from .models import OneToOneModel
+from .models import TestObj
 
 colors = """red
 blue
@@ -644,7 +645,7 @@ class TestLookupNode(TestCase):
             foo__bar__in=[1, 2],
             foo__bar__baz=6,
         ))
-        self.assertEqual(node.children.keys(), [LookupComponent('foo')])
+        self.assertEqual(list(node.children.keys()), [LookupComponent('foo')])
         self.assertEqual(node['foo']['bar']['in'].value, [1, 2])
         self.assertEqual(node['foo']['bar'].to_dict(), {'in': [1, 2], 'baz': 6})
 
@@ -655,7 +656,7 @@ class TestLookupNode(TestCase):
         node_values = node.values(obj)
 
         def _make_hashable(d):
-            return frozenset(d.iteritems())
+            return frozenset(six.iteritems(d) if isinstance(d, dict) else d.iteritems())
 
         self.assertEqual(
             set(map(_make_hashable, orm_values)),
