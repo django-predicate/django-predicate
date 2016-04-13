@@ -1,20 +1,10 @@
 language: python
+python:
+  - "2.7"
+  - "3.5"
+install: pip install tox-travis
+script: tox
 env:
-env:
-  - TOX_ENV=lint
-  - DB=postgres TOX_ENV=py27-1.7-postgres
-  - DB=postgres TOX_ENV=py27-1.8-postgres
-  - DB=postgres TOX_ENV=py27-1.9-postgres
-  - DB=postgres TOX_ENV=py35-1.8-postgres
-  - DB=postgres TOX_ENV=py35-1.9-postgres
-  - DB=sqlite TOX_ENV=py27-1.7-sqlite
-  - DB=sqlite TOX_ENV=py27-1.8-sqlite
-  - DB=sqlite TOX_ENV=py27-1.9-sqlite
-  - DB=sqlite TOX_ENV=py35-1.8-sqlite
-  - DB=sqlite TOX_ENV=py35-1.9-sqlite
-install:
-- pip install tox --use-mirrors
-script:
-- POSTGRES_USER=postgres POSTGRES_PASSWORD="" tox -e $TOX_ENV
+  - POSTGRES_USER=postgres POSTGRES_PASSWORD=""
 notifications:
   email: false
