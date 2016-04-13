@@ -32,8 +32,8 @@ elif _BACKEND == 'postgresql_psycopg2':
         'default': {
             'NAME': 'predicatedb%s' % _ENVNAME,
             'ENGINE': 'django.db.backends.postgresql_psycopg2',
-            'USER': 'django',
-            'PASSWORD': 'secret',
+            'USER': os.environ.get('POSTGRES_USER', 'django'),
+            'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'django'),
         },
     }
 
