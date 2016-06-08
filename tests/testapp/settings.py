@@ -160,3 +160,4 @@ LOGGING = {
 }
 
 TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
+USE_TZ = False
