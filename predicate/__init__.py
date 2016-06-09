@@ -2,6 +2,6 @@
 from .predicate import P
 from .predicate import PredicateQuerySet
 
-__version__ = '1.4.0'
+__version__ = '2.0.0'
 __all__ = ['P', 'PredicateQuerySet']
 
