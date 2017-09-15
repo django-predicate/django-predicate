@@ -381,7 +381,7 @@ def get_values_list(obj, *lookups, **kwargs):
         raise TypeError('Unexpected keyword arguments to values_list: %s' %
                         kwargs.keys())
     if flat and len(lookups) > 1:
-        raise TypeError("'flat' is not valid when values_list is called with more than one field.")  # nopep8
+        raise TypeError("'flat' is not valid when values_list is called with more than one field.")  # noqa:E501
 
     lookup_node = LookupNode(lookups={lookup: GET for lookup in lookups})
     value_dicts = lookup_node.values(obj)
