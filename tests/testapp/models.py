@@ -15,7 +15,7 @@ class Base(models.Model):
 
 @nottest
 class TestObj(Base):
-    parent = models.ForeignKey('self', related_name='children', null=True)
+    parent = models.ForeignKey('self', related_name='children', null=True, on_delete=models.CASCADE)
     m2ms = models.ManyToManyField(
         'testapp.M2MModel', related_name='test_objs')
 
@@ -33,13 +33,13 @@ class M2MModel(Base):
 
 class OneToOneModel(Base):
     test_obj = models.OneToOneField(
-        TestObj, null=True)
+        TestObj, null=True, on_delete=models.CASCADE)
 
 
 class CustomRelatedNameOneToOneModel(Base):
     test_obj = models.OneToOneField(
-        TestObj, related_name='custom_one_to_one', null=True)
+        TestObj, related_name='custom_one_to_one', null=True, on_delete=models.CASCADE)
 
 
 class ForeignKeyModel(Base):
-    test_obj = models.ForeignKey(TestObj, null=True)
+    test_obj = models.ForeignKey(TestObj, null=True, on_delete=models.CASCADE)
