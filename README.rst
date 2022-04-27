@@ -1,3 +1,9 @@
+Notice
+======
+
+2022-04-27: This library is currently unmaintained, since I no longer use Django. If there is any interest, I'm still happy to review pull requests and consider adding maintainers. - @lucaswiman
+
+
 django-predicate
 ================
 
