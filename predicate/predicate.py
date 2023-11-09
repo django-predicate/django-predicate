@@ -3,10 +3,7 @@ import itertools
 
 from django.utils.tree import Node
 
-try:
-    from django.core.exceptions import FieldDoesNotExist
-except ImportError:  # Django <1.8
-    from django.db.models.fields import FieldDoesNotExist
+from django.core.exceptions import FieldDoesNotExist
 from django.core.exceptions import MultipleObjectsReturned
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
