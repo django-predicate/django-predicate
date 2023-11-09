@@ -1,7 +1,6 @@
 import datetime
 
 from django.db import models
-from nose.tools import nottest
 
 
 class Base(models.Model):
@@ -13,8 +12,9 @@ class Base(models.Model):
     datetime_value = models.DateTimeField(default=datetime.datetime.now)
 
 
-@nottest
 class TestObj(Base):
+    __test__ = False
+
     parent = models.ForeignKey('self', related_name='children', null=True, on_delete=models.CASCADE)
     m2ms = models.ManyToManyField(
         'testapp.M2MModel', related_name='test_objs')

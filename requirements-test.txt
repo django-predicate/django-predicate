@@ -2,12 +2,8 @@
 
 coverage
 six
-
-# Use the current HEAD for 1.10 support. This can be replaced with the pypi version once
-# this commit is included on pypi.
--e git+https://github.com/django-nose/django-nose.git@9ecfc4d8fa78400a32ea2b544c38b1661ddb0048#egg=django-nose
-
-nose==1.3.7
+pytest
+pytest-django
 psycopg2
 mock
 sqlparse
