@@ -1,6 +1,7 @@
 # Requirements needed for running the test suite.
 
 coverage
+six
 
 # Use the current HEAD for 1.10 support. This can be replaced with the pypi version once
 # this commit is included on pypi.
