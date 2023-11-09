@@ -2,6 +2,7 @@
 
 coverage
 pytest
+pytest-cov
 pytest-django
 psycopg2
 mock
