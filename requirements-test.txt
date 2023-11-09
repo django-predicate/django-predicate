@@ -1,7 +1,6 @@
 # Requirements needed for running the test suite.
 
 coverage
-six
 pytest
 pytest-django
 psycopg2

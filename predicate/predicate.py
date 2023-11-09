@@ -16,8 +16,6 @@ from django.db.models.constants import LOOKUP_SEP
 from django.db.models.query import REPR_OUTPUT_SIZE
 from django.db.models.query_utils import Q
 from django.utils.functional import cached_property
-from django.utils import six
-from six.moves import zip, filter
 
 from .lookup_utils import get_field_and_accessor
 from .lookup_utils import LOOKUP_TO_EVALUATOR
@@ -247,8 +245,8 @@ class LookupNode(object):
         lookups = lookups or {}
         self.connector = connector
         self.children = {}
-        if lookups is not None:
-            for lookup, value in six.viewitems(lookups):
+        if lookups:
+            for lookup, value in lookups.items():
                 self[lookup] = value
 
     @property
@@ -276,27 +274,28 @@ class LookupNode(object):
             cur = cur.children[component]
         return cur
 
-    def iteritems(self, lookup_stack=None):
+    def items(self, lookup_stack=None):
+        # This function is named `items` so that either a Node or a dict can have the same calls.
         lookup_stack = [] if lookup_stack is None else lookup_stack
-        for component, node in six.viewitems(self.children):
+        for component, node in self.children.items():
             if component == LookupComponent.EMPTY:
                 yield (LookupComponent(LOOKUP_SEP.join(lookup_stack)),
                        self.value)
             else:
                 lookup_stack.append(component)
-                for item in node.iteritems(lookup_stack=lookup_stack):
+                for item in node.items(lookup_stack=lookup_stack):
                     yield item
                 lookup_stack.pop()
 
     def to_dict(self):
-        return dict(self.iteritems())
+        return dict(self.items())
 
     def __repr__(self):
         return 'LookupNode(lookups=%r)' % self.to_dict()
 
     @cached_property
     def evaluators(self):
-        return [query.build_evaluator(rhs) for query, rhs in self.iteritems()]
+        return [query.build_evaluator(rhs) for query, rhs in self.items()]
 
     def eval(self, instance):
         query_values_lookups = self.convert_to_query_values_node()
@@ -308,7 +307,7 @@ class LookupNode(object):
                 node_matches = False
             else:
                 raise NotImplementedError(self.connector)
-            for lookup, value in node.iteritems():
+            for lookup, value in node.items():
                 queries = self[lookup]
                 if self.connector == Q.AND:
                     node_matches &= all(
@@ -331,7 +330,7 @@ class LookupNode(object):
         Used for evaluating predicates.
         """
         lookups = LookupNode(connector=self.connector)
-        for lookup, _ in self.iteritems():
+        for lookup, _ in self.items():
             parsed = LookupComponent.parse(lookup)
             if parsed[-1].is_query:
                 parsed.pop()
