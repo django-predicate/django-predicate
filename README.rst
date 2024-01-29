@@ -82,3 +82,19 @@ the same conditions, it is far better to start with the predicate. Because of
 the way querysets assume a SQL context, it is non-trivial to reverse engineer
 them back into a predicate. However as seen above, it is very straightforward
 to create a queryset based on a predicate.
+
+
+Development
+-----------
+
+These instructions assume you have Postgres installed and all referenced Python versions installed and activated, e.g. with Pyenv.
+
+To run the tests locally, do the following:
+
+1. Clone this repo.
+2. Start Postgres in the background for the Postgres tests with `postgres -D ~/postgres`.
+3. Activate all tested Python versions used in this repo: `pyenv local 3.6 3.7 3.10`.
+3. (Optional) Create a virtualenv and activate it: `python -m venv .venv`, `source .venv/bin/activate`.
+5. (Optional) Upgrade pip to prevent platform issues `pip install --upgrade pip`
+6. Install Tox for running tests: `pip install tox`.
+7. Run all tests by issuing command `tox` with no arguments.
