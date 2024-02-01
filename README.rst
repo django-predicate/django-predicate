@@ -98,3 +98,51 @@ To run the tests locally, do the following:
 5. (Optional) Upgrade pip to prevent platform issues `pip install --upgrade pip`
 6. Install Tox for running tests: `pip install tox`.
 7. Run all tests by issuing command `tox` with no arguments.
+
+
+Changelog
+-----------
+
+2.0.1 
+^^^^^
+
+Added
+"""""
+
+* Added support for Python 3.7 and 3.10, and Django 2.2, 3.2, and 4.1 (see `tox.ini` for compatible Python/Django version tuples).
+
+
+Changed
+"""""""
+
+* Converted test runner from Nose to Pytest.
+
+
+Removed
+"""""""
+
+* Dropped support for Python 2.7, Python 3.5, and Django 1.9.
+
+
+2.0.0 (Unreleased)
+^^^^^^^^^^^^^^^^^^
+
+This version was pushed to Master but was not pushed to PyPI.
+
+Added
+"""""
+
+* Added deprecation warning to README.
+* Added Travis CI config.
+
+
+Removed
+"""""""
+
+* Dropped support for Django 1.7 and 1.8.
+
+
+1.4.0
+^^^^^
+
+This version and below aren't covered in this changelog.
