@@ -27,7 +27,7 @@ setup(
     author='Preston Holmes',
     author_email='preston@ptone.com',
     license='BSD',
-    url='http://github.com/ptone/django-predicate',
+    url='http://github.com/django-predicate/django-predicate',
     packages=[
         'predicate',
     ],
@@ -39,9 +39,9 @@ setup(
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.10',
         'Topic :: Utilities',
     ],
-    test_suite='runtests.runtests'
 )
