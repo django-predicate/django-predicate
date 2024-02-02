@@ -1,8 +1,6 @@
 from copy import deepcopy
 from contextlib import contextmanager
 
-from nose.tools import assert_equal, assert_list_equal
-
 from predicate import P
 from predicate import PredicateQuerySet
 
@@ -21,7 +19,7 @@ def orm_eval(predicate, instance):
 
     orm_value = manager.filter(predicate, pk=instance.pk).exists()
     super_value = original_eval(predicate, instance)
-    assert_equal(orm_value, super_value)
+    assert orm_value == super_value
 
     return super_value
 
@@ -61,7 +59,7 @@ def orm_filter(predicate, instance):
     manager = type(instance)._default_manager
     orm_value = manager.filter(predicate, pk=instance.pk).exists()
     super_value = original_filter(predicate, instance)
-    assert_equal(orm_value, super_value)
+    assert orm_value == super_value
     return super_value
 
 
@@ -86,13 +84,13 @@ class OrmPredicateQuerySet(object):
             self._assert_iterables_equal()
             return type(self)(qs_value, predicatequeryset=pqs_value)
         else:
-            assert_equal(pqs_value, qs_value)
+            assert pqs_value == qs_value
             return pqs_value
 
     def _assert_iterables_equal(self):
         pqs = deepcopy(self.pqs)
         qs = deepcopy(self.qs)
-        assert_list_equal(list(pqs), list(qs))
+        assert list(pqs) == list(qs)
 
     def all(self, *args, **kwargs):
         return self._call_on_iterables('all', *args, **kwargs)

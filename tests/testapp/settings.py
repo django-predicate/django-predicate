@@ -126,7 +126,6 @@ TEMPLATE_DIRS = (
 )
 
 INSTALLED_APPS = (
-        'django_nose',
         'tests.testapp',
 )
 
@@ -159,5 +158,4 @@ LOGGING = {
     }
 }
 
-TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
 USE_TZ = False

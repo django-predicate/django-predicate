@@ -12,7 +12,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from django.test import skipIfDBFeature
 from django.test import TestCase
-from django.utils import six
 
 from predicate.debug import OrmP
 from predicate.debug import patch_with_orm_eval
@@ -663,7 +662,7 @@ class TestLookupNode(TestCase):
         node_values = node.values(obj)
 
         def _make_hashable(d):
-            return frozenset(six.iteritems(d) if isinstance(d, dict) else d.iteritems())
+            return frozenset(d.items())
 
         self.assertEqual(
             set(map(_make_hashable, orm_values)),

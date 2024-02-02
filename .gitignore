@@ -6,3 +6,7 @@ test.db
 .tox
 /htmlcov
 /dist
+__pycache__
+*.swp
+.venv
+.python-version
